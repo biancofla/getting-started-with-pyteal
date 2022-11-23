@@ -50,7 +50,7 @@
     /data/contracts/rps/reveal.sh
 ```
 
-**N.B.** The last operation can fail in case the application account balance is below the minimum requested balance. In this case, fund the application account balance.
+**N.B.** The last operation can fail in case the application account balance is below the minimum required balance. In this case, fund the application account balance.
 
 ```
     goal clerk app send -f <from_address> -t <application_address> -a 100000
