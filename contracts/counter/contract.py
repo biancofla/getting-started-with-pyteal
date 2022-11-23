@@ -77,7 +77,7 @@ def modify_counter(case, global_counter):
                 )
                 .Then(
                     App.globalPut(global_counter, scratch_counter.load() - Int(1)),
-                ),
+                )
             ]
         )
     )
