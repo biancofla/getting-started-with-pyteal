@@ -56,7 +56,7 @@ The only prerequisite for this project is [Docker](https://docs.docker.com/get-d
   python -m pip install -r ./requirements.txt
 ```
 
-To run one of the contracts, have a look at the singles `README.md` files associated with each of them:
+To run one of the contracts, have a look at these `README.md` files:
 
 * [Counter](https://github.com/biancofla/getting-started-with-pyteal/tree/main/contracts/counter)
 * [Rock, Paper, Scissors](https://github.com/biancofla/getting-started-with-pyteal/tree/main/contracts/rps)
