@@ -1,6 +1,7 @@
-# Exclude virtual environment folder.
 venv
 
 .DS_Store
 __pycache__
+
+/build/*
 

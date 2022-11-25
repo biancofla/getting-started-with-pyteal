@@ -51,7 +51,7 @@ def deploy(creator_pk):
 
         clear_result  = algod_client.compile(clear)
         clear_program = base64.b64decode(clear_result["result"])
-
+        
         local_schema  = transaction.StateSchema(num_uints=0, num_byte_slices=0)
         global_schema = transaction.StateSchema(num_uints=1, num_byte_slices=1)
 
@@ -90,8 +90,8 @@ def modify_counter(account_pk, app_id, increase=True):
         Args:
             * account_pk (str): account's private key.
             * app_id (int): application index.
-            * increase (default=True): if True, increase
-            the counter; otherwise, decrease the counter.
+            * increase (bool, default=True): if True, 
+            increase the counter; otherwise, decrease the counter.
 
         Returns:
             * (int): if successful, return the confirmation round; 
@@ -155,10 +155,14 @@ if __name__ == "__main__":
     app_id = deploy(creator_pk=accounts[0][0])
 
     for i in range(0, 5):
-        print(f"#{i + 1} Modifying counter...")
-
-        increase = True
-        if i > 3: increase = False
+        # Increase the counter's value three times and decrease 
+        # it two times.
+        if i < 3: 
+            print("Counter's value increased by 1.")
+            increase = True
+        else:
+            print("Counter's value decreased by 1.")
+            increase = False
 
         modify_counter(
             account_pk=accounts[1][0],
@@ -172,4 +176,5 @@ if __name__ == "__main__":
     for item in global_state:
         if item["key"] == key:
             value = item["value"]
-            print(f"Counter: {value['uint']}")
+            print(f"Counter's value: {value['uint']}")
+            break

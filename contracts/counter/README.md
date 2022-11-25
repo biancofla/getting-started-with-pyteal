@@ -6,7 +6,7 @@
     ./build.sh contracts.counter.contract
 ```
 
-2. Enter inside contract folder and deploy/execute the contract.
+2. Enter inside the contract folder.
 
 ```
     cd ./contracts/counter/
