@@ -121,7 +121,7 @@ def modify_counter(account_pk, app_id, increase=True):
             wait_rounds=2
         )
 
-        confirmation_round = result['confirmed-round']
+        confirmation_round = result["confirmed-round"]
 
         return confirmation_round
     except error.AlgodHTTPError as e:
@@ -147,7 +147,7 @@ def get_global_state(app_id):
     finally:
         return global_state
 
-if __name__ == "__main__":
+def test():
     accounts = [account.generate_account() for _ in range(0, 2)]
 
     feed_accounts(accounts)
@@ -178,3 +178,6 @@ if __name__ == "__main__":
             value = item["value"]
             print(f"Counter's value: {value['uint']}")
             break
+
+if __name__ == "__main__":
+    test()

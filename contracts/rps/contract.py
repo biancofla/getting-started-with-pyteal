@@ -141,10 +141,10 @@ def _are_available_to_play(
             App.localGet(challenger, local_commitment) == Bytes(""),
             App.localGet(challenger, local_reveal    ) == Bytes(""),
             # Check opponent account availability.
-            App.localGet(opponent, local_opponent  ) == Bytes(""),
-            App.localGet(opponent, local_wager     ) == Int(0)   ,
-            App.localGet(opponent, local_commitment) == Bytes(""),
-            App.localGet(opponent, local_reveal    ) == Bytes(""),
+            App.localGet(opponent  , local_opponent  ) == Bytes(""),
+            App.localGet(opponent  , local_wager     ) == Int(0)   ,
+            App.localGet(opponent  , local_commitment) == Bytes(""),
+            App.localGet(opponent  , local_reveal    ) == Bytes(""),
         )
     )
 
