@@ -164,7 +164,7 @@ def accept_challenge(
             And(
                 # Check if the challenger account has opted in.
                 App.optedIn(Txn.accounts[1], Global.current_application_id()),
-                # Check if the challenger's opponent is this specific account.
+                # Check if the challenger's opponent is the right one.
                 App.localGet(Txn.accounts[1], local_opponent) == Txn.sender(),
                 # Check if:
                 # 1) the second transaction in the group is a payment transaction;

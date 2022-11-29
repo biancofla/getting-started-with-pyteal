@@ -1,7 +1,7 @@
 from algosdk.future import transaction
 from algosdk.v2client import algod
 from algosdk import (
-    constants,
+    encoding,
     account,
     error,
     logic
@@ -11,6 +11,7 @@ from pyteal import *
 
 import hashlib
 import base64
+import json
 import os
 
 SANDBOX_COMMAND_PATH = "../../../sandbox/sandbox"
@@ -87,6 +88,17 @@ def deploy(creator_pk):
         return -1
 
 def optin(account_pk, app_id):
+    """
+        Perform opt-in operation.
+
+        Args:
+            * account_pk (str): opt-in account's private key.
+            * app_id (int): application index.
+
+        Returns:
+            * (int): if successful, return the confirmation round; 
+            otherwise, return -1.
+    """
     sender = account.address_from_private_key(account_pk)
     try:
         suggested_parameters = algod_client.suggested_params()
@@ -113,29 +125,40 @@ def optin(account_pk, app_id):
         print(e)
         return -1
 
-def create_challenge(challenger_pk, challenge, app_id):
+def create_challenge(challenger_pk, commitment, app_id, opponent_addr):
+    """
+        Create challenge.
+
+        Args:
+            * challenger_pk (str): challenger's private key.
+            * commitment (str): challenger's commitment.
+            * app_id (int): application index.
+            * opponent_addr (str): opponent's address.
+
+        Returns:
+            * (int): if successful, return the confirmation round; 
+            otherwise, return -1.
+    """
     sender = account.address_from_private_key(challenger_pk)
     try:
         suggested_parameters = algod_client.suggested_params()
 
         app_args = []
         app_args.append("challenge".encode())
-        app_args.append(sha256b64(challenge).encode())
+        app_args.append(sha256b64(commitment).encode())
 
         unsigned_txn_1 = transaction.ApplicationNoOpTxn(
             sender=sender,
             sp=suggested_parameters,
             index=app_id,
             app_args=app_args,
-            rekey_to=constants.ZERO_ADDRESS
+            accounts=[opponent_addr]
         )
         unsigned_txn_2 = transaction.PaymentTxn(
             sender=sender,
             sp=suggested_parameters,
             receiver=logic.get_application_address(app_id),
-            amt=5000,
-            close_remainder_to=constants.ZERO_ADDRESS,
-            rekey_to=constants.ZERO_ADDRESS
+            amt=123456
         )
 
         group_id = transaction.calculate_group_id(
@@ -153,7 +176,69 @@ def create_challenge(challenger_pk, challenge, app_id):
 
         result = transaction.wait_for_confirmation(
             algod_client=algod_client,
-            txnid=txn_id,
+            txid=txn_id,
+            wait_rounds=4
+        )
+
+        confirmation_round = result["confirmed-round"]
+
+        return confirmation_round
+    except error.AlgodHTTPError as e:
+        print(e)
+        return -1
+
+def accept_challenge(opponent_pk, opponent_reveal, app_id, challenger_addr):
+    """
+        Accept challenge.
+
+        Args:
+            * opponent_pk (str): opponent's private key.
+            * opponent_reveal (str): opponent's reveal.
+            * app_id (int): application index.
+            * challenger_addr (str): challenger's address.
+
+        Returns:
+            * (int): if successful, return the confirmation round; 
+            otherwise, return -1.
+    """
+    sender = account.address_from_private_key(opponent_pk)
+    try:
+        suggested_parameters = algod_client.suggested_params()
+
+        app_args = []
+        app_args.append("accept".encode())
+        app_args.append(opponent_reveal.encode())
+
+        unsigned_txn_1 = transaction.ApplicationNoOpTxn(
+            sender=sender,
+            sp=suggested_parameters,
+            index=app_id,
+            app_args=app_args,
+            accounts=[challenger_addr]
+        )
+        unsigned_txn_2 = transaction.PaymentTxn(
+            sender=sender,
+            sp=suggested_parameters,
+            receiver=logic.get_application_address(app_id),
+            amt=123456
+        )
+
+        group_id = transaction.calculate_group_id(
+            [unsigned_txn_1, unsigned_txn_2]
+        )
+        unsigned_txn_1.group = group_id
+        unsigned_txn_2.group = group_id
+
+        signed_txn_1 = unsigned_txn_1.sign(opponent_pk)
+        signed_txn_2 = unsigned_txn_2.sign(opponent_pk)
+
+        signed_group = [signed_txn_1, signed_txn_2]
+
+        txn_id = algod_client.send_transactions(signed_group)
+
+        result = transaction.wait_for_confirmation(
+            algod_client=algod_client,
+            txid=txn_id,
             wait_rounds=4
         )
 
@@ -175,17 +260,24 @@ def get_local_state(address, app_id):
         Returns:
             (dict): application's local state.
     """
-    local_state = {}
+    formatted_local_state = {}
     try:
         account_info = algod_client.account_info(address)
-        for ls in account_info["apps-local-state"]:
-            if ls["id"] == app_id:
-                local_state = ls["key-value"]
-                break
+        for app_local_state in account_info["apps-local-state"]:
+            if app_local_state["id"] == app_id:
+                local_state = app_local_state["key-value"]
+                for ls in local_state:
+                    k, v_dict = ls["key"], ls["value"]
+                    if v_dict["type"] == 1: 
+                        v = v_dict["bytes"]
+                    else: 
+                        v = v_dict["uint"]
+                    k = base64.b64decode(k).decode()
+                    formatted_local_state[k] = v
     except error.AlgodHTTPError as e:
         print(e)
     finally:
-        return local_state
+        return formatted_local_state
 
 def sha256b64(s: str) -> str:
     return base64.b64encode(
@@ -199,19 +291,55 @@ def test():
 
     app_id = deploy(creator_pk=accounts[0][0])
     
+    print("Opting in accounts...")
     optin_account_1 = optin(accounts[1][0], app_id)
     optin_account_2 = optin(accounts[2][0], app_id)
     if optin_account_1 > -1 and optin_account_2 > -1:
-        print(get_local_state(accounts[1][1], app_id))
-        print(get_local_state(accounts[2][1], app_id))
-
-        # confirmation_round = create_challenge(
-        #     accounts[1][0],
-        #     "r",
-        #     app_id
-        # )
-        # if confirmation_round > -1:
-        #     print(get_local_state(accounts[1][1], app_id))
+        print(f"{accounts[1][1]} local state:")
+        print(
+            json.dumps(
+                get_local_state(accounts[1][1], app_id),
+                indent=4
+            )
+        )
+        print(f"{accounts[2][1]} local state:")
+        print(
+            json.dumps(
+                get_local_state(accounts[2][1], app_id),
+                indent=4
+            )
+        )
+        
+        print("Creating challenge...")
+        create_challenge_cr = create_challenge(
+            accounts[1][0],
+            "r",
+            app_id,
+            accounts[2][1]
+        )
+        if create_challenge_cr > -1:
+            print("Accepting challenge...")
+            accept_challenge_cr = accept_challenge(
+                accounts[2][0],
+                "r",
+                app_id,
+                accounts[1][1]
+            )
+            if accept_challenge_cr > -1:
+                print(f"{accounts[1][1]} local state:")
+                print(
+                    json.dumps(
+                        get_local_state(accounts[1][1], app_id),
+                        indent=4
+                    )
+                )
+                print(f"{accounts[2][1]} local state:")
+                print(
+                    json.dumps(
+                        get_local_state(accounts[2][1], app_id),
+                        indent=4
+                    )
+                )
 
 if __name__ == "__main__":
     test()
