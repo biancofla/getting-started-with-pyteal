@@ -1,12 +1,10 @@
 from algosdk.future import transaction
 from algosdk.v2client import algod
 from algosdk import (
-    encoding,
     account,
     error,
     logic
 )
-
 from pyteal import *
 
 import hashlib
@@ -16,6 +14,9 @@ import os
 
 SANDBOX_COMMAND_PATH = "../../../sandbox/sandbox"
 GENESIS_ADDRESS      = "S4Z25GO6DW6ZL6FKX5O3YFFVQEXAMMPZQOGO7VP3LHKRWJUJHKRF5WOM4M"
+
+CHALLENGER_REVEAL = "p"
+OPPONENT_REVEAL   = "p"
 
 algod_address = "http://localhost:4001"
 algod_token   = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -30,7 +31,7 @@ def feed_accounts(accounts):
     """
     for account in accounts:
         os.system(
-            f"{SANDBOX_COMMAND_PATH} goal clerk send -f {GENESIS_ADDRESS} -t {account[1]} -a 1000000"
+            f"{SANDBOX_COMMAND_PATH} goal clerk send -f {GENESIS_ADDRESS} -t {account} -a 1000000"
         )
 
 def deploy(creator_pk):
@@ -145,7 +146,9 @@ def create_challenge(challenger_pk, commitment, app_id, opponent_addr):
 
         app_args = []
         app_args.append("challenge".encode())
-        app_args.append(sha256b64(commitment).encode())
+        app_args.append(
+            hashlib.sha256(commitment.encode("utf-8")).digest()
+        )
 
         unsigned_txn_1 = transaction.ApplicationNoOpTxn(
             sender=sender,
@@ -249,6 +252,54 @@ def accept_challenge(opponent_pk, opponent_reveal, app_id, challenger_addr):
         print(e)
         return -1
 
+def reveal(challenger_pk, challenger_reveal, app_id, opponent_addr):
+    """
+        Do the reveal operation.
+
+        Args:
+            * challenger_pk (str): challenger's private key.
+            * challenger_reveal (str): challenger's reveal.
+            * app_id (int): application index.
+            * opponent_addr (str): opponent's address.
+
+        Returns:
+            * (int): if successful, return the confirmation round; 
+            otherwise, return -1.
+    """
+    sender = account.address_from_private_key(challenger_pk)
+    try:
+        suggested_parameters = algod_client.suggested_params()
+        suggested_parameters.flat_fee = True
+        suggested_parameters.fee = 3000
+
+        app_args = []
+        app_args.append("reveal".encode())
+        app_args.append(challenger_reveal.encode())
+
+        unsigned_txn = transaction.ApplicationNoOpTxn(
+            sender=sender,
+            sp=suggested_parameters,
+            index=app_id,
+            app_args=app_args,
+            accounts=[opponent_addr]
+        )
+        signed_txn = unsigned_txn.sign(challenger_pk)
+
+        txn_id = algod_client.send_transaction(signed_txn)
+
+        result = transaction.wait_for_confirmation(
+            algod_client=algod_client,
+            txid=txn_id,
+            wait_rounds=2
+        )
+
+        confirmation_round = result["confirmed-round"]
+
+        return confirmation_round
+    except error.AlgodHTTPError as e:
+        print(e)
+        return -1
+
 def get_local_state(address, app_id):
     """
         Get application's local state.
@@ -279,17 +330,14 @@ def get_local_state(address, app_id):
     finally:
         return formatted_local_state
 
-def sha256b64(s: str) -> str:
-    return base64.b64encode(
-        hashlib.sha256(str(s).encode("utf-8")).digest()
-    ).decode("utf-8")
-
 def test():
     accounts = [account.generate_account() for _ in range(0, 3)]
 
-    feed_accounts(accounts)
+    feed_accounts([a[1] for a in accounts])
 
     app_id = deploy(creator_pk=accounts[0][0])
+
+    feed_accounts([logic.get_application_address(app_id)])
     
     print("Opting in accounts...")
     optin_account_1 = optin(accounts[1][0], app_id)
@@ -313,7 +361,7 @@ def test():
         print("Creating challenge...")
         create_challenge_cr = create_challenge(
             accounts[1][0],
-            "r",
+            CHALLENGER_REVEAL,
             app_id,
             accounts[2][1]
         )
@@ -321,7 +369,7 @@ def test():
             print("Accepting challenge...")
             accept_challenge_cr = accept_challenge(
                 accounts[2][0],
-                "r",
+                OPPONENT_REVEAL,
                 app_id,
                 accounts[1][1]
             )
@@ -340,6 +388,21 @@ def test():
                         indent=4
                     )
                 )
+                
+                print("Revealing...")
+                reveal_cr = reveal(
+                    accounts[1][0],
+                    CHALLENGER_REVEAL,
+                    app_id,
+                    accounts[2][1]
+                )
+                if reveal_cr > -1:
+                    print(
+                        f"{accounts[1][1]} balance: {algod_client.account_info(accounts[1][1])['amount']} MicroAlgos"
+                    )
+                    print(
+                        f"{accounts[2][1]} balance: {algod_client.account_info(accounts[2][1])['amount']} MicroAlgos"
+                    )
 
 if __name__ == "__main__":
     test()

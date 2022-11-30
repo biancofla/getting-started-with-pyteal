@@ -232,8 +232,9 @@ def reveal(
                 App.localGet(Txn.sender(), local_commitment) != Bytes(""),
                 # Check reveal from the opponent account is not empty. 
                 App.localGet(Txn.accounts[1], local_reveal) != Bytes(""),
-                # Check commit/reveal from challenger.
+                # Check if the number of arguments passed is valid.
                 Txn.application_args.length() == Int(2),
+                # Check challenger's commitment.
                 Sha256(Txn.application_args[1]) == App.localGet(Txn.sender(), local_commitment)
             )
         ),
@@ -314,7 +315,7 @@ def compute_winner(challenger_play, opponent_play):
     return Return(
         Cond(
             [((opponent_play   + Int(1)) % Int(3)) == challenger_play, Int(0)],
-            [((challenger_play + Int(1)) % Int(3)) == opponent_play  , Int(0)],
+            [((challenger_play + Int(1)) % Int(3)) == opponent_play  , Int(1)],
         )
     )
 
