@@ -339,3 +339,4 @@ def send_amount(account_index, amount):
 
 def clear():
     return Approve()
+    

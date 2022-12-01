@@ -1,5 +1,5 @@
+from algosdk.v2client import algod, indexer
 from algosdk.future import transaction
-from algosdk.v2client import algod
 from algosdk import (
     account,
     error,
@@ -12,15 +12,25 @@ import base64
 import json
 import os
 
+# Sandbox configuration.
 SANDBOX_COMMAND_PATH = "../../../sandbox/sandbox"
 GENESIS_ADDRESS      = "S4Z25GO6DW6ZL6FKX5O3YFFVQEXAMMPZQOGO7VP3LHKRWJUJHKRF5WOM4M"
-
-CHALLENGER_REVEAL = "p"
+# Challenger and opponent plays.
+CHALLENGER_REVEAL = "r"
 OPPONENT_REVEAL   = "p"
-
+# Algod client configuration.
 algod_address = "http://localhost:4001"
 algod_token   = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-algod_client  = algod.AlgodClient(algod_token, algod_address)
+algod_client  = algod.AlgodClient(
+    algod_token=algod_token, 
+    algod_address=algod_address
+)
+# Indexer client configuration.
+indexer_address = "http://localhost:8980"
+indexer_client  = indexer.IndexerClient(
+    indexer_token="", 
+    indexer_address=indexer_address
+)
 
 def feed_accounts(accounts):
     """
@@ -330,6 +340,21 @@ def get_local_state(address, app_id):
     finally:
         return formatted_local_state
 
+def find_transactions_by_addr(address):
+    """
+        Find transactions by address.
+
+        Args:
+            * address (str): address used to filter transactions.
+
+        Returns:
+            * (list): transactions associated with the specified
+            address.
+    """
+    return indexer_client.search_transactions(
+        address=address
+    )["transactions"]
+
 def test():
     accounts = [account.generate_account() for _ in range(0, 3)]
 
@@ -338,7 +363,7 @@ def test():
     app_id = deploy(creator_pk=accounts[0][0])
 
     feed_accounts([logic.get_application_address(app_id)])
-    
+
     print("Opting in accounts...")
     optin_account_1 = optin(accounts[1][0], app_id)
     optin_account_2 = optin(accounts[2][0], app_id)
@@ -397,12 +422,22 @@ def test():
                     accounts[2][1]
                 )
                 if reveal_cr > -1:
-                    print(
-                        f"{accounts[1][1]} balance: {algod_client.account_info(accounts[1][1])['amount']} MicroAlgos"
+                    transactions = find_transactions_by_addr(
+                        logic.get_application_address(app_id)
                     )
-                    print(
-                        f"{accounts[2][1]} balance: {algod_client.account_info(accounts[2][1])['amount']} MicroAlgos"
-                    )
+                    for t in transactions:
+                        if "inner-txns" in t.keys():
+                            len_inner_txns = len(t["inner-txns"])
+                            if   len_inner_txns == 1:
+                                receiver_inner_txn = t["inner-txns"][0]["payment-transaction"]["receiver"]
+                                if (receiver_inner_txn in [accounts[1][1], accounts[2][1]]):
+                                    print(f"{receiver_inner_txn} WIN!")
+                            elif len_inner_txns == 2:
+                                receiver_inner_txn_1 = t["inner-txns"][0]["payment-transaction"]["receiver"]
+                                receiver_inner_txn_2 = t["inner-txns"][1]["payment-transaction"]["receiver"]
+                                if (    receiver_inner_txn_1 == accounts[1][1]
+                                    and receiver_inner_txn_2 == accounts[2][1]):
+                                    print("TIE GAME! WAGERS REFUNDED.")
 
 if __name__ == "__main__":
     test()
