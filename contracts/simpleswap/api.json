@@ -1,0 +1,33 @@
+{
+    "name": "Simple Swap v0.1",
+    "methods": [
+        {
+            "name": "optin_assets",
+            "args": [
+                {
+                    "type": "uint64",
+                    "name": "asset_id_from",
+                    "desc": "Lorem ipsum dolor sid amet."
+                },
+                {
+                    "type": "uint64",
+                    "name": "asset_id_to",
+                    "desc": "Lorem ipsum dolor sid amet."
+                }
+            ],
+            "returns": {
+                "type": "void"
+            },
+            "desc": "Lorem ipsum dolor sid amet."
+        },
+        {
+            "name": "swap_token",
+            "args": [],
+            "returns": {
+                "type": "void"
+            },
+            "desc": "Lorem ipsum dolor sid amet."
+        }
+    ],
+    "networks": {}
+}
