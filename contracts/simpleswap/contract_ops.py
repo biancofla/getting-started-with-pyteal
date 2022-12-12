@@ -36,7 +36,7 @@ def feed_accounts(accounts):
     """
     for account in accounts:
         os.system(
-            f"{SANDBOX_COMMAND_PATH} goal clerk send -f {GENESIS_ADDRESS} -t {account} -a 1000000"
+            f"{SANDBOX_COMMAND_PATH} goal clerk send -f {GENESIS_ADDRESS} -t {account} -a 10000000"
         )
 
 def deploy(creator_pk):
@@ -52,7 +52,7 @@ def deploy(creator_pk):
     """
     with open("../../build/approval.teal", "r") as f: approval = f.read()
     with open("../../build/clear.teal"   , "r") as f: clear    = f.read()
-    
+
     sender = account.address_from_private_key(creator_pk)
 
     try:
@@ -61,13 +61,13 @@ def deploy(creator_pk):
 
         clear_result  = algod_client.compile(clear)
         clear_program = base64.b64decode(clear_result["result"])
-        
+
         local_schema  = transaction.StateSchema(num_uints=0, num_byte_slices=0)
         global_schema = transaction.StateSchema(num_uints=3, num_byte_slices=0)
 
         suggested_parameters = algod_client.suggested_params()
 
-        unsigned_txnn = transaction.ApplicationCreateTxn(
+        unsigned_txn = transaction.ApplicationCreateTxn(
             sender=sender,
             sp=suggested_parameters,
             on_complete=transaction.OnComplete.NoOpOC,
@@ -76,7 +76,7 @@ def deploy(creator_pk):
             global_schema=global_schema,
             local_schema=local_schema
         )
-        signed_txn = unsigned_txnn.sign(creator_pk)
+        signed_txn = unsigned_txn.sign(creator_pk)
 
         txn_id = algod_client.send_transaction(signed_txn)
 
@@ -106,19 +106,14 @@ def optin_assets(account_pk, app_id, asset_id_from, asset_id_to):
             js = f.read()
         c = Contract.from_json(js)
 
-        def get_method(name):
-            for m in c.methods:
-                if m.name == name:
-                    return m
-            raise(f"No method with the name {name}")
-
         atc.add_method_call(
             app_id=app_id,
-            method=get_method("optin_assets"),
+            method=_get_method(c, "optin_assets"),
             sender=sender,
             sp=suggested_parameters,
             signer=signer,
-            method_args=[asset_id_from, asset_id_to]
+            method_args=[asset_id_from, asset_id_to],
+            foreign_assets=[asset_id_from, asset_id_to]
         )
 
         unsigned_txn = transaction.PaymentTxn(
@@ -132,15 +127,107 @@ def optin_assets(account_pk, app_id, asset_id_from, asset_id_to):
 
         result = atc.execute(algod_client, 2)
 
-        confirmation_round = result["confirmed-round"]
+        confirmation_round = result.confirmed_round
 
         return confirmation_round
     except error.AlgodHTTPError as e:
         print(e)
         return -1
 
+def swap(account_pk, app_id, asset_id_from, asset_id_to):
+    sender = account.address_from_private_key(account_pk)
+    try:
+        atc = AtomicTransactionComposer()
+
+        signer = AccountTransactionSigner(account_pk)
+
+        suggested_parameters = algod_client.suggested_params()
+
+        with open("./api.json") as f:
+            js = f.read()
+        c = Contract.from_json(js)
+
+        atc.add_method_call(
+            app_id=app_id,
+            method=_get_method(c, "swap"),
+            sender=sender,
+            sp=suggested_parameters,
+            signer=signer
+        )
+
+        unsigned_txn_1 = transaction.AssetTransferTxn(
+            sender=sender,
+            sp=suggested_parameters,
+            receiver=sender,
+            amt=0,
+            index=asset_id_to
+        )
+        signed_txn_1 = TransactionWithSigner(unsigned_txn_1, signer)
+        atc.add_transaction(signed_txn_1)
+
+        unsigned_txn_2 = transaction.AssetTransferTxn(
+            sender=sender,
+            sp=suggested_parameters,
+            receiver=logic.get_application_address(app_id),
+            amt=1,
+            index=asset_id_from
+        )
+        signed_txn_2 = TransactionWithSigner(unsigned_txn_2, signer)
+        atc.add_transaction(signed_txn_2)
+
+        result = atc.execute(algod_client, 2)
+
+        confirmation_round = result.confirmed_round
+
+        return confirmation_round
+    except error.AlgodHTTPError as e:
+        print(e)
+        return -1
+
+def create_asa(creator_pk, manager_pk, token_conf):
+    creator = account.address_from_private_key(creator_pk)
+    manager = account.address_from_private_key(manager_pk)
+    try:
+        suggested_parameters = algod_client.suggested_params()
+
+        unsigned_txn = transaction.AssetConfigTxn(
+            sender=creator,
+            sp=suggested_parameters,
+            total=token_conf["total"],
+            default_frozen=False,
+            unit_name=token_conf["unit_name"],
+            asset_name=token_conf["asset_name"],
+            manager=manager,
+            reserve=manager,
+            freeze=manager,
+            clawback=manager,
+            decimals=token_conf["decimals"]
+        )
+        signed_txn = unsigned_txn.sign(creator_pk)
+
+        txn_id = algod_client.send_transaction(signed_txn)
+
+        result = transaction.wait_for_confirmation(
+            algod_client=algod_client,
+            txid=txn_id,
+            wait_rounds=2
+        )
+
+        asset_id = result["asset-index"]
+
+        return asset_id
+    except error.AlgodHTTPError as e:
+        print(e)
+        return -1
+
+def _get_method(c, name):
+    for m in c.methods:
+        if m.name == name:
+            return m
+    raise(f"No method with the name {name}")
+
 if __name__ == "__main__":
-    accounts = [account.generate_account() for _ in range(0, 2)]
+    accounts = [account.generate_account() for _ in range(0, 4)]
 
     feed_accounts([a[1] for a in accounts])
 
@@ -148,11 +235,40 @@ if __name__ == "__main__":
 
     feed_accounts([logic.get_application_address(app_id)])
 
-    # TODO: create ASAs.
+    token_a_conf = {
+        "unit_name" : "Token A",
+        "asset_name": "token_a",
+        "total"     : 1000,
+        "decimals"  : 0
+    }
+    token_a_id = create_asa(
+        creator_pk=accounts[1][0],
+        manager_pk=accounts[2][0],
+        token_conf=token_a_conf
+    )
 
-    #cr = optin_assets(
-    #    accounts[1][0],
+    token_b_conf = {
+        "unit_name" : "Token B",
+        "asset_name": "token_b",
+        "total"     : 1000000000,
+        "decimals"  : 6
+    }
+    token_b_id = create_asa(
+        creator_pk=accounts[1][0],
+        manager_pk=accounts[2][0],
+        token_conf=token_b_conf
+    )
+
+    cr_optin = optin_assets(
+        accounts[3][0],
+        app_id,
+        token_a_id,
+        token_b_id
+    )
+
+    #cr_swap = swap(
+    #    accounts[3][0],
     #    app_id,
-    #    384303832,
-    #    523683256
+    #    token_a_id,
+    #    token_b_id
     #)

@@ -21,7 +21,7 @@
             "desc": "Lorem ipsum dolor sid amet."
         },
         {
-            "name": "swap_token",
+            "name": "swap",
             "args": [],
             "returns": {
                 "type": "void"
