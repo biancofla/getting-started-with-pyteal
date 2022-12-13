@@ -11,6 +11,7 @@ from algosdk import (
     error,
     logic
 )
+
 from pyteal import *
 
 import base64
@@ -134,7 +135,7 @@ def optin_assets(account_pk, app_id, asset_id_from, asset_id_to):
         print(e)
         return -1
 
-def swap(account_pk, app_id, asset_id_from, asset_id_to):
+def swap(account_pk, app_id, asset_id_from, asset_id_to, amount_to_swap):
     sender = account.address_from_private_key(account_pk)
     try:
         atc = AtomicTransactionComposer()
@@ -152,28 +153,19 @@ def swap(account_pk, app_id, asset_id_from, asset_id_to):
             method=_get_method(c, "swap"),
             sender=sender,
             sp=suggested_parameters,
-            signer=signer
+            signer=signer,
+            foreign_assets=[asset_id_from, asset_id_to]
         )
 
         unsigned_txn_1 = transaction.AssetTransferTxn(
             sender=sender,
             sp=suggested_parameters,
-            receiver=sender,
-            amt=0,
-            index=asset_id_to
+            receiver=logic.get_application_address(app_id),
+            amt=amount_to_swap,
+            index=asset_id_from
         )
         signed_txn_1 = TransactionWithSigner(unsigned_txn_1, signer)
         atc.add_transaction(signed_txn_1)
-
-        unsigned_txn_2 = transaction.AssetTransferTxn(
-            sender=sender,
-            sp=suggested_parameters,
-            receiver=logic.get_application_address(app_id),
-            amt=1,
-            index=asset_id_from
-        )
-        signed_txn_2 = TransactionWithSigner(unsigned_txn_2, signer)
-        atc.add_transaction(signed_txn_2)
 
         result = atc.execute(algod_client, 2)
 
@@ -220,6 +212,62 @@ def create_asa(creator_pk, manager_pk, token_conf):
         print(e)
         return -1
 
+def optin_asa(account_pk, asset_id_from):
+    sender = account.address_from_private_key(account_pk)
+    try:
+        suggested_parameters = algod_client.suggested_params()
+
+        unsigned_txn = transaction.AssetOptInTxn(
+            sender=sender,
+            sp=suggested_parameters,
+            index=asset_id_from
+        )
+        signed_txn = unsigned_txn.sign(account_pk)
+
+        txn_id = algod_client.send_transaction(signed_txn)
+
+        result = transaction.wait_for_confirmation(
+            algod_client=algod_client,
+            txid=txn_id,
+            wait_rounds=2
+        )
+
+        confirmation_round = result["confirmed-round"]
+
+        return confirmation_round
+    except error.AlgodHTTPError as e:
+        print(e)
+        return -1
+
+def send_asa(sender_pk, receiver_addr, asset_id_from, amount):
+    sender = account.address_from_private_key(sender_pk)
+    try:
+        suggested_parameters = algod_client.suggested_params()
+
+        unsigned_txn = transaction.AssetTransferTxn(
+            sender=sender,
+            sp=suggested_parameters,
+            receiver=receiver_addr,
+            amt=amount,
+            index=asset_id_from
+        )
+        signed_txn = unsigned_txn.sign(sender_pk)
+
+        txn_id = algod_client.send_transaction(signed_txn)
+
+        result = transaction.wait_for_confirmation(
+            algod_client=algod_client,
+            txid=txn_id,
+            wait_rounds=2
+        )
+
+        confirmation_round = result["confirmed-round"]
+
+        return confirmation_round
+    except error.AlgodHTTPError as e:
+        print(e)
+        return -1
+
 def _get_method(c, name):
     for m in c.methods:
         if m.name == name:
@@ -238,8 +286,8 @@ if __name__ == "__main__":
     token_a_conf = {
         "unit_name" : "Token A",
         "asset_name": "token_a",
-        "total"     : 1000,
-        "decimals"  : 0
+        "total"     : 1e13,
+        "decimals"  : 4
     }
     token_a_id = create_asa(
         creator_pk=accounts[1][0],
@@ -250,8 +298,8 @@ if __name__ == "__main__":
     token_b_conf = {
         "unit_name" : "Token B",
         "asset_name": "token_b",
-        "total"     : 1000000000,
-        "decimals"  : 6
+        "total"     : 1e17,
+        "decimals"  : 7
     }
     token_b_id = create_asa(
         creator_pk=accounts[1][0],
@@ -266,9 +314,45 @@ if __name__ == "__main__":
         token_b_id
     )
 
-    #cr_swap = swap(
-    #    accounts[3][0],
-    #    app_id,
-    #    token_a_id,
-    #    token_b_id
-    #)
+    print("Send Token A to swap program")
+    cr_send_asa = send_asa(
+        sender_pk=accounts[1][0],
+        receiver_addr=logic.get_application_address(app_id),
+        asset_id_from=token_a_id,
+        amount=int(1e9)
+    )
+    print("Send Token B to swap program")
+    cr_send_asa = send_asa(
+        sender_pk=accounts[1][0],
+        receiver_addr=logic.get_application_address(app_id),
+        asset_id_from=token_b_id,
+        amount=int(1e13)
+    )
+
+    print("Opt-in Token A")
+    cr_optin_token_a = optin_asa(
+        account_pk=accounts[3][0],
+        asset_id_from=token_a_id
+    )
+    print("Opt-in Token B")
+    cr_optin_token_a = optin_asa(
+        account_pk=accounts[3][0],
+        asset_id_from=token_b_id
+    )
+
+    print("Send Token A to account")
+    cr_send_asa = send_asa(
+        sender_pk=accounts[1][0],
+        receiver_addr=accounts[3][1],
+        asset_id_from=token_a_id,
+        amount=50
+    )
+
+    print("Swap Token A to Token B")
+    cr_swap = swap(
+        account_pk=accounts[3][0],
+        app_id=app_id,
+        asset_id_from=token_a_id,
+        asset_id_to=token_b_id,
+        amount_to_swap=1
+    )

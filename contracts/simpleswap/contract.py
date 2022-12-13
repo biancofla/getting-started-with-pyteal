@@ -71,8 +71,8 @@ def optin_assets(
             InnerTxnBuilder.SetFields
             (
                 {
-                    TxnField.type_enum: TxnType.AssetTransfer,
-                    TxnField.xfer_asset: asset_id_from.get(),
+                    TxnField.type_enum     : TxnType.AssetTransfer,
+                    TxnField.xfer_asset    : asset_id_from.get(),
                     TxnField.asset_receiver: Global.current_application_address(),
                 }
             ),
@@ -84,8 +84,8 @@ def optin_assets(
             InnerTxnBuilder.SetFields
             (
                 {
-                    TxnField.type_enum: TxnType.AssetTransfer,
-                    TxnField.xfer_asset: asset_id_to.get(),
+                    TxnField.type_enum     : TxnType.AssetTransfer,
+                    TxnField.xfer_asset    : asset_id_to.get(),
                     TxnField.asset_receiver: Global.current_application_address(),
                 }
             ),
@@ -113,53 +113,36 @@ def swap() -> Expr:
     return Seq(
         Assert(
             And(
-                Global.group_size() == Int(3),
+                Global.group_size() == Int(2),
                 Txn.group_index()   == Int(0),
                 *[
                     Gtxn[i].rekey_to() == Global.zero_address()
-                    for i in range(3)
+                    for i in range(2)
                 ],
                 # Check if the first transaction in the group:
                 # 1) is a no-op application call;
                 # 2) has the application id equal to the one of the current application;
                 # 3) has the number of arguments equal to zero.
-                Gtxn[0].on_completion()           == OnComplete.NoOp,
-                Gtxn[0].application_id()          == Global.current_application_id(),
-                Gtxn[0].application_args.length() == Int(0),
+                Gtxn[0].on_completion()  == OnComplete.NoOp,
+                Gtxn[0].application_id() == Global.current_application_id(),
                 # Check if the second transaction in the group:
-                # 1) is an asset transfer transaction;
-                # 2) has the asset to be transfered parameter equal 
-                #    to the destination asset set as global variable;
-                # 3) has the asset amount parameter set to 0;
-                # 4) has the sender address equal to the asset receiver address;
-                # 5) has the rekey address set to a zero address;
-                # 6) has the close remainder address set to a zero address;
-                # 7) has the asset close address set to a zero address.
-                Gtxn[1].type_enum()          == TxnType.AssetTransfer,
-                Gtxn[1].xfer_asset()         == App.globalGet(global_asset_id_to),
-                Gtxn[1].asset_amount()       == Int(0),
-                Gtxn[1].sender()             == Gtxn[1].asset_receiver(),
-                Gtxn[1].rekey_to()           == Global.zero_address(),
-                Gtxn[1].close_remainder_to() == Global.zero_address(),
-                Gtxn[1].asset_close_to()     == Global.zero_address(),
-                # Check if the third transaction in the group:
                 # 1) is an asset transfer transaction;
                 # 2) has the asset to be transfered parameter equal 
                 #    to the source asset set as global variable;
                 # 3) has the asset amount parameter greater than 0;
                 # 4) has the sender address equal to the sender address of the 
                 #    first transaction in the group;
-                # 5) has the rekey address set to a zero address;
-                # 6) has the close remainder address set to a zero address;
-                # 7) has the asset close address set to a zero address.
-                Gtxn[2].type_enum()          == TxnType.AssetTransfer,
-                Gtxn[2].xfer_asset()         == App.globalGet(global_asset_id_from),
-                Gtxn[2].asset_amount()       >  Int(0),
-                Gtxn[2].sender()             == Gtxn[1].sender(),
-                Gtxn[2].receiver()           == Global.current_application_address(),
-                Gtxn[2].rekey_to()           == Global.zero_address(),
-                Gtxn[2].close_remainder_to() == Global.zero_address(),
-                Gtxn[2].asset_close_to()     == Global.zero_address(),
+                # 5) has the asset receiver address equal to the current application
+                #    address.
+                # 5) has the close remainder address set to a zero address;
+                # 6) has the asset close address set to a zero address.
+                Gtxn[1].type_enum()          == TxnType.AssetTransfer,
+                Gtxn[1].xfer_asset()         == App.globalGet(global_asset_id_from),
+                Gtxn[1].asset_amount()       >  Int(0),
+                Gtxn[1].sender()             == Gtxn[0].sender(),
+                Gtxn[1].asset_receiver()     == Global.current_application_address(),
+                Gtxn[1].close_remainder_to() == Global.zero_address(),
+                Gtxn[1].asset_close_to()     == Global.zero_address()
             )
         ),
         # Swap source token into destination token.
@@ -167,10 +150,10 @@ def swap() -> Expr:
             InnerTxnBuilder.Begin(),
             InnerTxnBuilder.SetFields(
                 {
-                    TxnField.type_enum: TxnType.AssetTransfer,
+                    TxnField.type_enum     : TxnType.AssetTransfer,
                     TxnField.asset_receiver: Txn.sender(),
-                    TxnField.asset_amount: Gtxn[2].asset_amount() * App.globalGet(global_multiplier),
-                    TxnField.xfer_asset: App.globalGet(global_asset_id_to),
+                    TxnField.asset_amount  : Gtxn[1].asset_amount() * App.globalGet(global_multiplier),
+                    TxnField.xfer_asset    : App.globalGet(global_asset_id_to),
                 }
             ),
             InnerTxnBuilder.Submit(),
