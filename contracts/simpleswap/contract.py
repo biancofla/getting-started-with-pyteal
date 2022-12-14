@@ -42,8 +42,6 @@ def optin_assets(
     return Seq(
         Assert(
             And(
-                Global.group_size() == Int(2),
-                Txn.group_index()   == Int(0),
                 *[
                     Gtxn[i].rekey_to() == Global.zero_address()
                     for i in range(2)
@@ -66,8 +64,7 @@ def optin_assets(
             )
         ),
         # Opt-in into starting asset.
-        Seq(
-            InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.Begin(),
             InnerTxnBuilder.SetFields
             (
                 {
@@ -76,11 +73,8 @@ def optin_assets(
                     TxnField.asset_receiver: Global.current_application_address(),
                 }
             ),
-            InnerTxnBuilder.Submit(),
-        ),
+        InnerTxnBuilder.Next(),
         # Opt-in into destination asset.
-        Seq(
-            InnerTxnBuilder.Begin(),
             InnerTxnBuilder.SetFields
             (
                 {
@@ -89,8 +83,7 @@ def optin_assets(
                     TxnField.asset_receiver: Global.current_application_address(),
                 }
             ),
-            InnerTxnBuilder.Submit(),
-        ),
+        InnerTxnBuilder.Submit(),
         # Set source and destination asset global variables.
         App.globalPut(global_asset_id_from, asset_id_from.get()),
         App.globalPut(global_asset_id_to  , asset_id_to.get()  ),
@@ -113,8 +106,6 @@ def swap() -> Expr:
     return Seq(
         Assert(
             And(
-                Global.group_size() == Int(2),
-                Txn.group_index()   == Int(0),
                 *[
                     Gtxn[i].rekey_to() == Global.zero_address()
                     for i in range(2)
@@ -146,8 +137,7 @@ def swap() -> Expr:
             )
         ),
         # Swap source token into destination token.
-        Seq(
-            InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.Begin(),
             InnerTxnBuilder.SetFields(
                 {
                     TxnField.type_enum     : TxnType.AssetTransfer,
@@ -156,8 +146,7 @@ def swap() -> Expr:
                     TxnField.xfer_asset    : App.globalGet(global_asset_id_to),
                 }
             ),
-            InnerTxnBuilder.Submit(),
-        ),
+        InnerTxnBuilder.Submit(),
         Approve()
     )
 

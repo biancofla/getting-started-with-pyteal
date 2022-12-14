@@ -121,7 +121,7 @@ def optin_assets(account_pk, app_id, asset_id_from, asset_id_to):
             sender=sender,
             sp=suggested_parameters,
             receiver=logic.get_application_address(app_id),
-            amt=100000
+            amt=300200
         )
         signed_txn = TransactionWithSigner(unsigned_txn, signer)
         atc.add_transaction(signed_txn)
@@ -286,7 +286,7 @@ if __name__ == "__main__":
     token_a_conf = {
         "unit_name" : "Token A",
         "asset_name": "token_a",
-        "total"     : 1e13,
+        "total"     : 1e11,
         "decimals"  : 4
     }
     token_a_id = create_asa(
@@ -298,8 +298,8 @@ if __name__ == "__main__":
     token_b_conf = {
         "unit_name" : "Token B",
         "asset_name": "token_b",
-        "total"     : 1e17,
-        "decimals"  : 7
+        "total"     : 1e15,
+        "decimals"  : 6
     }
     token_b_id = create_asa(
         creator_pk=accounts[1][0],
