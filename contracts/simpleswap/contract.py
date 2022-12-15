@@ -1,5 +1,6 @@
 from pyteal import *
 
+global_admin         = Bytes("admin")
 global_asset_id_from = Bytes("asset-id-from")
 global_asset_id_to   = Bytes("asset-id-to")
 global_multiplier    = Bytes("multiplier")
@@ -8,13 +9,18 @@ asset_decimal = AssetParam.decimals(
     App.globalGet(global_asset_id_to)
 )
 
+handle_creation = Seq(
+    App.globalPut(global_admin, Txn.sender()),
+    Approve()
+)
+
 router = Router(
     # Name of the contract.
     name="Simple Swap v0.1",
     # Handle bare call actions (i.e., transactions with 0 arguments).
     bare_calls=BareCallActions(
         # On creation, simply approve the bare call.
-        no_op=OnCompleteAction.create_only(Approve()),
+        no_op=OnCompleteAction.create_only(handle_creation),
         # The contract doesn't need a local state. There is no need
         # to handle the bare calls related to close out, opt-in and 
         # clear state.
@@ -26,6 +32,31 @@ router = Router(
         delete_application=OnCompleteAction.always(Reject()),
     )
 )
+
+@router.method(no_op=CallConfig.CALL)
+def set_admin(
+    new_admin_address: abi.String
+) -> Expr:
+    """
+        Lorem ipsum dolor sid amet.
+
+        Args:
+            new_creator_address: Lorem ipsum dolor sid amet.
+    """
+    return Seq(
+        Assert(
+            And(
+                # Check if the sender is the current administrator of the contract.
+                Txn.sender()            == App.globalGet(global_admin),
+                # Check if the new administator is not the current administrator of 
+                # the contract (Will make no sense).
+                new_admin_address.get() != App.globalGet(global_admin)
+            )
+        ),
+        App.globalPut(global_admin, new_admin_address.get()),
+        Approve()
+    )
+
 
 @router.method(no_op=CallConfig.CALL)
 def optin_assets(
@@ -98,6 +129,7 @@ def optin_assets(
         Approve()
     )
 
+
 @router.method(no_op=CallConfig.CALL)
 def swap() -> Expr:
     """
@@ -149,6 +181,7 @@ def swap() -> Expr:
         InnerTxnBuilder.Submit(),
         Approve()
     )
+    
 
 if __name__ == "__main__":
     import json 

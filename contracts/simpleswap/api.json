@@ -2,6 +2,19 @@
     "name": "Simple Swap v0.1",
     "methods": [
         {
+            "name": "set_admin",
+            "args": [
+                {
+                    "type": "string",
+                    "name": "new_admin_address"
+                }
+            ],
+            "returns": {
+                "type": "void"
+            },
+            "desc": "Lorem ipsum dolor sid amet."
+        },
+        {
             "name": "optin_assets",
             "args": [
                 {

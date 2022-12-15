@@ -64,7 +64,7 @@ def deploy(creator_pk):
         clear_program = base64.b64decode(clear_result["result"])
 
         local_schema  = transaction.StateSchema(num_uints=0, num_byte_slices=0)
-        global_schema = transaction.StateSchema(num_uints=3, num_byte_slices=0)
+        global_schema = transaction.StateSchema(num_uints=3, num_byte_slices=1)
 
         suggested_parameters = algod_client.suggested_params()
 
