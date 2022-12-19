@@ -2,6 +2,14 @@
     "name": "Simple Swap v0.1",
     "methods": [
         {
+            "name": "get_admin",
+            "args": [],
+            "returns": {
+                "type": "void"
+            },
+            "desc": "Lorem ipsum dolor sid amet."
+        },
+        {
             "name": "set_admin",
             "args": [
                 {
@@ -9,6 +17,14 @@
                     "name": "new_admin_address"
                 }
             ],
+            "returns": {
+                "type": "void"
+            },
+            "desc": "Lorem ipsum dolor sid amet."
+        },
+        {
+            "name": "get_rate",
+            "args": [],
             "returns": {
                 "type": "void"
             },

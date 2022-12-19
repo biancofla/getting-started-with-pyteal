@@ -3,11 +3,7 @@ from pyteal import *
 global_admin         = Bytes("admin")
 global_asset_id_from = Bytes("asset-id-from")
 global_asset_id_to   = Bytes("asset-id-to")
-global_multiplier    = Bytes("multiplier")
-
-asset_decimal = AssetParam.decimals(
-    App.globalGet(global_asset_id_to)
-)
+global_rate          = Bytes("rate")
 
 handle_creation = Seq(
     App.globalPut(global_admin, Txn.sender()),
@@ -19,7 +15,7 @@ router = Router(
     name="Simple Swap v0.1",
     # Handle bare call actions (i.e., transactions with 0 arguments).
     bare_calls=BareCallActions(
-        # On creation, simply approve the bare call.
+        # On creation, set admin address and approve transaction.
         no_op=OnCompleteAction.create_only(handle_creation),
         # The contract doesn't need a local state. There is no need
         # to handle the bare calls related to close out, opt-in and 
@@ -32,6 +28,19 @@ router = Router(
         delete_application=OnCompleteAction.always(Reject()),
     )
 )
+
+@router.method(no_op=CallConfig.CALL)
+def get_admin(
+    output: abi.Address
+) -> Expr:
+    """
+        Lorem ipsum dolor sid amet.
+
+        Returns:
+            Lorem ipsum dolor sid amet.
+    """
+    return output.set(App.globalGet(global_admin))
+
 
 @router.method(no_op=CallConfig.CALL)
 def set_admin(
@@ -49,11 +58,49 @@ def set_admin(
                 # Check if the sender is the current administrator of the contract.
                 Txn.sender()            == App.globalGet(global_admin),
                 # Check if the new administator is not the current administrator of 
-                # the contract (Will make no sense).
+                # the contract. It will make no sense.
                 new_admin_address.get() != App.globalGet(global_admin)
             )
         ),
+        # Set 
         App.globalPut(global_admin, new_admin_address.get()),
+        Approve()
+    )
+
+
+@router.method(no_op=CallConfig.CALL)
+def get_rate(
+    output: abi.Uint64
+) -> Expr:
+    """
+        Lorem ipsum dolor sid amet.
+
+        Returns:
+            Lorem ipsum dolor sid amet.
+    """
+    return output.set(App.globalGet(global_rate))
+
+
+def set_rate(
+    new_rate: abi.Uint64
+) -> Expr:
+    """
+        Lorem ipsum dolor sid amet.
+
+        Args:
+            new_rate: Lorem ipsum dolor sid amet.
+    """
+    return Seq(
+        Assert(
+            And(
+                # Check if the sender is the current administrator of the contract.
+                Txn.sender() == App.globalGet(global_admin),
+                # Check if the new rate is greater than 0.
+                new_rate.get() > Int(0)
+            )
+        ),
+        # Set rate as global variable.
+        App.globalPut(global_rate, new_rate.get()),
         Approve()
     )
 
@@ -96,36 +143,28 @@ def optin_assets(
         ),
         # Opt-in into starting asset.
         InnerTxnBuilder.Begin(),
-            InnerTxnBuilder.SetFields
-            (
-                {
-                    TxnField.type_enum     : TxnType.AssetTransfer,
-                    TxnField.xfer_asset    : asset_id_from.get(),
-                    TxnField.asset_receiver: Global.current_application_address(),
-                }
-            ),
-        InnerTxnBuilder.Next(),
+        InnerTxnBuilder.SetFields
+        (
+            {
+                TxnField.type_enum     : TxnType.AssetTransfer,
+                TxnField.xfer_asset    : asset_id_from.get(),
+                TxnField.asset_receiver: Global.current_application_address(),
+            }
+        ),
         # Opt-in into destination asset.
-            InnerTxnBuilder.SetFields
-            (
-                {
-                    TxnField.type_enum     : TxnType.AssetTransfer,
-                    TxnField.xfer_asset    : asset_id_to.get(),
-                    TxnField.asset_receiver: Global.current_application_address(),
-                }
-            ),
+        InnerTxnBuilder.Next(),
+        InnerTxnBuilder.SetFields
+        (
+            {
+                TxnField.type_enum     : TxnType.AssetTransfer,
+                TxnField.xfer_asset    : asset_id_to.get(),
+                TxnField.asset_receiver: Global.current_application_address(),
+            }
+        ),
         InnerTxnBuilder.Submit(),
         # Set source and destination asset global variables.
         App.globalPut(global_asset_id_from, asset_id_from.get()),
         App.globalPut(global_asset_id_to  , asset_id_to.get()  ),
-        # Get the number of decimals for a specific asset.
-        asset_decimal,
-        Assert(
-            # Throw an error if the asset doesn't exists.
-            asset_decimal.hasValue()
-        ),
-        # Set the multiplier global variable.
-        App.globalPut(global_multiplier, Exp(Int(10), asset_decimal.value())),
         Approve()
     )
 
@@ -135,6 +174,9 @@ def swap() -> Expr:
     """
         Lorem ipsum dolor sid amet.
     """
+    asset_to_transfer  = ScratchVar(TealType.uint64)
+    amount_to_transfer = ScratchVar(TealType.uint64)
+
     return Seq(
         Assert(
             And(
@@ -151,7 +193,7 @@ def swap() -> Expr:
                 # Check if the second transaction in the group:
                 # 1) is an asset transfer transaction;
                 # 2) has the asset to be transfered parameter equal 
-                #    to the source asset set as global variable;
+                #    to the source/destination asset set as global variable;
                 # 3) has the asset amount parameter greater than 0;
                 # 4) has the sender address equal to the sender address of the 
                 #    first transaction in the group;
@@ -160,24 +202,64 @@ def swap() -> Expr:
                 # 5) has the close remainder address set to a zero address;
                 # 6) has the asset close address set to a zero address.
                 Gtxn[1].type_enum()          == TxnType.AssetTransfer,
-                Gtxn[1].xfer_asset()         == App.globalGet(global_asset_id_from),
+                Or(
+                    Gtxn[1].xfer_asset() == App.globalGet(global_asset_id_from),
+                    Gtxn[1].xfer_asset() == App.globalGet(global_asset_id_to  ),
+                ),
                 Gtxn[1].asset_amount()       >  Int(0),
                 Gtxn[1].sender()             == Gtxn[0].sender(),
                 Gtxn[1].asset_receiver()     == Global.current_application_address(),
                 Gtxn[1].close_remainder_to() == Global.zero_address(),
-                Gtxn[1].asset_close_to()     == Global.zero_address()
+                Gtxn[1].asset_close_to()     == Global.zero_address(),
             )
         ),
-        # Swap source token into destination token.
+        # Check if:
+        # 1)  the global rate variable is set;
+        # 2a) in case the asset ID is equal to the source asset global variable,
+        # check if the product between the asset amount and the rate global va-
+        # riable doesn't overflow;
+        # 2b) in case the asset ID is equal to the destination asset global va-
+        # riable, store the result obtained from the division of the asset amount
+        # and the rate.
+        Assert(
+            App.globalGet(global_rate) != Int(0)
+        ),
+        If(
+            Gtxn[1].xfer_asset() == App.globalGet(global_asset_id_from),
+        ).
+        Then(
+            Seq(
+                Assert(
+                    Gtxn[1].asset_amount() * App.globalGet(global_rate) < Int(2 ** 64 - 1)
+                ),
+                asset_to_transfer.store(
+                    App.globalGet(global_asset_id_from)
+                ),
+                amount_to_transfer.store(
+                    Gtxn[1].asset_amount() * App.globalGet(global_rate)
+                )
+            )
+        ).
+        Else(
+            Seq(
+                asset_to_transfer.store(
+                    App.globalGet(global_asset_id_to)
+                ),
+                amount_to_transfer.store(
+                    Gtxn[1].asset_amount() / App.globalGet(global_rate)
+                )
+            )
+        ),
+        # Swap tokens.
         InnerTxnBuilder.Begin(),
-            InnerTxnBuilder.SetFields(
-                {
-                    TxnField.type_enum     : TxnType.AssetTransfer,
-                    TxnField.asset_receiver: Txn.sender(),
-                    TxnField.asset_amount  : Gtxn[1].asset_amount() * App.globalGet(global_multiplier),
-                    TxnField.xfer_asset    : App.globalGet(global_asset_id_to),
-                }
-            ),
+        InnerTxnBuilder.SetFields(
+            {
+                TxnField.type_enum     : TxnType.AssetTransfer,
+                TxnField.asset_receiver: Txn.sender(),
+                TxnField.xfer_asset    : Int(0),
+                TxnField.asset_amount  : Int(0)
+            }
+        ),
         InnerTxnBuilder.Submit(),
         Approve()
     )
