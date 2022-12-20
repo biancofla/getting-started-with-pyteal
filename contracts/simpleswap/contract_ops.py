@@ -14,6 +14,8 @@ from algosdk import (
 
 from pyteal import *
 
+from faucet import fund_account
+
 import base64
 import os
 
@@ -28,17 +30,14 @@ algod_client  = algod.AlgodClient(
     algod_address=algod_address
 )
 
-def feed_accounts(accounts):
+def feed_accounts(accounts, amount):
     """
         Feed the accounts.
 
         Args:
             accounts (list): accounts to feed.
     """
-    for account in accounts:
-        os.system(
-            f"{SANDBOX_COMMAND_PATH} goal clerk send -f {GENESIS_ADDRESS} -t {account} -a 10000000"
-        )
+    for account in accounts: fund_account(account, amount)
 
 def deploy(creator_pk):
     """

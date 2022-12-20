@@ -81,6 +81,7 @@ def get_rate(
     return output.set(App.globalGet(global_rate))
 
 
+@router.method(no_op=CallConfig.CALL)
 def set_rate(
     new_rate: abi.Uint64
 ) -> Expr:
@@ -214,7 +215,7 @@ def swap() -> Expr:
             )
         ),
         # Check if:
-        # 1)  the global rate variable is set;
+        # 1)  the rate global variable is set;
         # 2a) in case the asset ID is equal to the source asset global variable,
         # check if the product between the asset amount and the rate global va-
         # riable doesn't overflow;
@@ -228,26 +229,22 @@ def swap() -> Expr:
             Gtxn[1].xfer_asset() == App.globalGet(global_asset_id_from),
         ).
         Then(
-            Seq(
-                Assert(
-                    Gtxn[1].asset_amount() * App.globalGet(global_rate) < Int(2 ** 64 - 1)
-                ),
-                asset_to_transfer.store(
-                    App.globalGet(global_asset_id_from)
-                ),
-                amount_to_transfer.store(
-                    Gtxn[1].asset_amount() * App.globalGet(global_rate)
-                )
+            Assert(
+                Gtxn[1].asset_amount() * App.globalGet(global_rate) < Int(2 ** 64 - 1)
+            ),
+            asset_to_transfer.store(
+                App.globalGet(global_asset_id_from)
+            ),
+            amount_to_transfer.store(
+                Gtxn[1].asset_amount() * App.globalGet(global_rate)
             )
         ).
         Else(
-            Seq(
-                asset_to_transfer.store(
-                    App.globalGet(global_asset_id_to)
-                ),
-                amount_to_transfer.store(
-                    Gtxn[1].asset_amount() / App.globalGet(global_rate)
-                )
+            asset_to_transfer.store(
+                App.globalGet(global_asset_id_to)
+            ),
+            amount_to_transfer.store(
+                Gtxn[1].asset_amount() / App.globalGet(global_rate)
             )
         ),
         # Swap tokens.
@@ -256,8 +253,8 @@ def swap() -> Expr:
             {
                 TxnField.type_enum     : TxnType.AssetTransfer,
                 TxnField.asset_receiver: Txn.sender(),
-                TxnField.xfer_asset    : Int(0),
-                TxnField.asset_amount  : Int(0)
+                TxnField.xfer_asset    : asset_to_transfer.load(),
+                TxnField.asset_amount  : amount_to_transfer.load()
             }
         ),
         InnerTxnBuilder.Submit(),
