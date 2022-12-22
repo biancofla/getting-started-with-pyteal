@@ -1,9 +1,11 @@
 from pyteal import *
 
-global_admin         = Bytes("admin")
-global_asset_id_from = Bytes("asset-id-from")
-global_asset_id_to   = Bytes("asset-id-to")
-global_rate          = Bytes("rate")
+global_admin          = Bytes("admin")
+global_admin_proposal = Bytes("admin-proposal")
+global_asset_id_from  = Bytes("asset-id-from")
+global_asset_id_to    = Bytes("asset-id-to")
+global_rate           = Bytes("rate")
+global_rate_decimals  = Bytes("rate-decimals")
 
 handle_creation = Seq(
     App.globalPut(global_admin, Txn.sender()),
@@ -29,79 +31,70 @@ router = Router(
     )
 )
 
-@router.method(no_op=CallConfig.CALL)
-def get_admin(
-    output: abi.Address
-) -> Expr:
-    """
-        Lorem ipsum dolor sid amet.
-
-        Returns:
-            Lorem ipsum dolor sid amet.
-    """
-    return output.set(App.globalGet(global_admin))
-
 
 @router.method(no_op=CallConfig.CALL)
-def set_admin(
-    new_admin_address: abi.String
+def propose_admin(
+    new_admin_address: abi.Address
 ) -> Expr:
     """
-        Lorem ipsum dolor sid amet.
+        Propose a new administrator.
 
         Args:
-            new_creator_address: Lorem ipsum dolor sid amet.
+            new_creator_address: Address of the proposed administrator.
     """
     return Seq(
         Assert(
-            And(
-                # Check if the sender is the current administrator of the contract.
-                Txn.sender()            == App.globalGet(global_admin),
-                # Check if the new administator is not the current administrator of 
-                # the contract. It will make no sense.
-                new_admin_address.get() != App.globalGet(global_admin)
-            )
+            # Check if the sender is the current administrator.
+            Txn.sender() == App.globalGet(global_admin),
         ),
-        # Set 
-        App.globalPut(global_admin, new_admin_address.get()),
-        Approve()
+        App.globalPut(global_admin_proposal, new_admin_address.get())
     )
 
 
 @router.method(no_op=CallConfig.CALL)
-def get_rate(
-    output: abi.Uint64
-) -> Expr:
+def accept_admin_role() -> Expr:
     """
-        Lorem ipsum dolor sid amet.
+        Accept the administrator's role.
 
-        Returns:
-            Lorem ipsum dolor sid amet.
     """
-    return output.set(App.globalGet(global_rate))
+    return Seq(
+        Assert(
+            # Check if the sender is the current proposed administrator.
+            App.globalGet(global_admin_proposal) == Txn.sender()
+        ),
+        # Set new administrator address.
+        App.globalPut(global_admin, App.globalGet(global_admin_proposal)),
+        # Reset administrator proposal address.
+        App.globalPut(global_admin_proposal, Bytes(""))
+    )
 
 
 @router.method(no_op=CallConfig.CALL)
 def set_rate(
-    new_rate: abi.Uint64
+    new_rate         : abi.Uint64,
+    new_rate_decimals: abi.Uint64
 ) -> Expr:
     """
-        Lorem ipsum dolor sid amet.
+        Set swap rate.
 
         Args:
-            new_rate: Lorem ipsum dolor sid amet.
+            new_rate: integer part of the new swap rate.
+            new_rate_decimals: number of decimals of the new swap rate.
     """
     return Seq(
         Assert(
             And(
-                # Check if the sender is the current administrator of the contract.
+                # Check if the sender is the current administrator of
+                # the contract.
                 Txn.sender() == App.globalGet(global_admin),
                 # Check if the new rate is greater than 0.
                 new_rate.get() > Int(0)
             )
         ),
-        # Set rate as global variable.
+        # Set new rate.
         App.globalPut(global_rate, new_rate.get()),
+        # Set new rate decimals.
+        App.globalPut(global_rate_decimals, new_rate_decimals.get()),
         Approve()
     )
 
@@ -109,37 +102,34 @@ def set_rate(
 @router.method(no_op=CallConfig.CALL)
 def optin_assets(
     asset_id_from: abi.Uint64, 
-    asset_id_to  : abi.Uint64
+    asset_id_to  : abi.Uint64,
+    txn          : abi.PaymentTransaction
 ) -> Expr:
     """
-        Lorem ipsum dolor sid amet.
+        Opt-in assets.
 
         Args:
-            asset_id_from: Lorem ipsum dolor sid amet.
-            asset_id_to: Lorem ipsum dolor sid amet.
+            asset_id_from: source asset.
+            asset_id_to: destination asset.
+            txn: payment transaction.
     """
     return Seq(
         Assert(
             And(
-                *[
-                    Gtxn[i].rekey_to() == Global.zero_address()
-                    for i in range(2)
-                ],
-                # Check if the global variables are unset.
+                # Check if the source/destination asset are unset.
                 App.globalGet(global_asset_id_from) == Int(0),
-                App.globalGet(global_asset_id_to  ) == Int(0),
-                # Check if the first transaction in the group:
-                # 1) is a no-op application call;
-                # 2) has the application id equal to the one of the current application.
-                Gtxn[0].on_completion()      == OnComplete.NoOp,
-                Gtxn[0].application_id()     == Global.current_application_id(),
-                # Check if the second transaction in the group:
-                # 1) is a payment transaction;
+                App.globalGet(global_asset_id_to)   == Int(0),
+                # Check if the transaction:
+                # 1) has the transaction sender equal to the current administrator address;
                 # 2) has the payment's receiver address equal to the address of the application;
-                # 3) has the close remainder address set to a zero address.
-                Gtxn[1].type_enum()          == TxnType.Payment,
-                Gtxn[1].receiver()           == Global.current_application_address(),
-                Gtxn[1].close_remainder_to() == Global.zero_address()
+                # 3) has the rekey address set to a zero address;
+                # 4) has the close remainder address set to a zero address;
+                # 5) has the asset close address set to a zero address.
+                txn.get().sender()             == App.globalGet(global_admin),
+                txn.get().receiver()           == Global.current_application_address(),
+                txn.get().rekey_to()           == Global.zero_address(),
+                txn.get().close_remainder_to() == Global.zero_address(),
+                txn.get().asset_close_to()     == Global.zero_address()
             )
         ),
         # Opt-in into starting asset.
@@ -148,6 +138,7 @@ def optin_assets(
         (
             {
                 TxnField.type_enum     : TxnType.AssetTransfer,
+                TxnField.fee           : Int(0),
                 TxnField.xfer_asset    : asset_id_from.get(),
                 TxnField.asset_receiver: Global.current_application_address(),
             }
@@ -158,93 +149,102 @@ def optin_assets(
         (
             {
                 TxnField.type_enum     : TxnType.AssetTransfer,
+                TxnField.fee           : Int(0),
                 TxnField.xfer_asset    : asset_id_to.get(),
                 TxnField.asset_receiver: Global.current_application_address(),
             }
         ),
         InnerTxnBuilder.Submit(),
-        # Set source and destination asset global variables.
+        # Set source and destination assets.
         App.globalPut(global_asset_id_from, asset_id_from.get()),
-        App.globalPut(global_asset_id_to  , asset_id_to.get()  ),
+        App.globalPut(global_asset_id_to, asset_id_to.get()),
         Approve()
     )
 
 
 @router.method(no_op=CallConfig.CALL)
-def swap() -> Expr:
+def swap(
+    txn: abi.AssetTransferTransaction
+) -> Expr:
     """
-        Lorem ipsum dolor sid amet.
+        Swap asset.
+
+        Args:
+            txn: asset transfer transaction.
     """
     asset_to_transfer  = ScratchVar(TealType.uint64)
     amount_to_transfer = ScratchVar(TealType.uint64)
+    rate_decimals      = ScratchVar(TealType.uint64)
 
     return Seq(
         Assert(
             And(
-                *[
-                    Gtxn[i].rekey_to() == Global.zero_address()
-                    for i in range(2)
-                ],
                 # Check if the first transaction in the group:
-                # 1) is a no-op application call;
-                # 2) has the application id equal to the one of the current application;
-                # 3) has the number of arguments equal to zero.
-                Gtxn[0].on_completion()  == OnComplete.NoOp,
-                Gtxn[0].application_id() == Global.current_application_id(),
-                # Check if the second transaction in the group:
-                # 1) is an asset transfer transaction;
-                # 2) has the asset to be transfered parameter equal 
+                # 1) has the asset to be transfered parameter equal 
                 #    to the source/destination asset set as global variable;
-                # 3) has the asset amount parameter greater than 0;
-                # 4) has the sender address equal to the sender address of the 
-                #    first transaction in the group;
-                # 5) has the asset receiver address equal to the current application
-                #    address.
+                # 2) has the asset amount parameter greater than 0;
+                # 3) has the asset receiver address equal to the current application
+                #    address;
+                # 4) has the rekey address set to a zero address;
                 # 5) has the close remainder address set to a zero address;
                 # 6) has the asset close address set to a zero address.
-                Gtxn[1].type_enum()          == TxnType.AssetTransfer,
                 Or(
-                    Gtxn[1].xfer_asset() == App.globalGet(global_asset_id_from),
-                    Gtxn[1].xfer_asset() == App.globalGet(global_asset_id_to  ),
+                    txn.get().xfer_asset() == App.globalGet(global_asset_id_from),
+                    txn.get().xfer_asset() == App.globalGet(global_asset_id_to)
                 ),
-                Gtxn[1].asset_amount()       >  Int(0),
-                Gtxn[1].sender()             == Gtxn[0].sender(),
-                Gtxn[1].asset_receiver()     == Global.current_application_address(),
-                Gtxn[1].close_remainder_to() == Global.zero_address(),
-                Gtxn[1].asset_close_to()     == Global.zero_address(),
+                txn.get().asset_amount()       >  Int(0),
+                txn.get().asset_receiver()     == Global.current_application_address(),
+                txn.get().rekey_to()           == Global.zero_address(),
+                txn.get().close_remainder_to() == Global.zero_address(),
+                txn.get().asset_close_to()     == Global.zero_address(),
             )
         ),
+        # In order to calculate the swapped token amount, we need to use the eq.:
+        #                              y = x * R / r,                                                                           
+        # where:
+        # - y is the quantity of the swapped token;
+        # - x is the quantity of the token to swap;
+        # - R is the integer part of the rate;
+        # - r is the number of decimals in the rate value.
+        #
         # Check if:
         # 1)  the rate global variable is set;
         # 2a) in case the asset ID is equal to the source asset global variable,
-        # check if the product between the asset amount and the rate global va-
-        # riable doesn't overflow;
+        #     check if the quantity y = x * R / r doesn't overflow;
         # 2b) in case the asset ID is equal to the destination asset global va-
-        # riable, store the result obtained from the division of the asset amount
-        # and the rate.
+        #     riable, check if the quantity x = y * r / R doesn't overflow.
         Assert(
-            App.globalGet(global_rate) != Int(0)
+            App.globalGet(global_rate) > Int(0)
         ),
+        rate_decimals.store(Exp(Int(10), App.globalGet(global_rate_decimals))),
         If(
-            Gtxn[1].xfer_asset() == App.globalGet(global_asset_id_from),
+            txn.get().xfer_asset() == App.globalGet(global_asset_id_from),
         ).
         Then(
             Assert(
-                Gtxn[1].asset_amount() * App.globalGet(global_rate) < Int(2 ** 64 - 1)
+                # Assuming that, in the division A * B, B is greater than 0, we have to
+                # check if the product of the multipilcation doesn't overflow.
+                txn.get().asset_amount() * App.globalGet(global_rate) / rate_decimals.load()
+            ),
+            asset_to_transfer.store(
+                App.globalGet(global_asset_id_to)
+            ),
+            amount_to_transfer.store(
+                txn.get().asset_amount() * App.globalGet(global_rate) / rate_decimals.load()
+            )
+        ).
+        Else(
+            Assert(
+                # Assuming that, in the division A / B, B is greater than 0, we have to
+                # check if the quotient of the division doesn't overflow (It may happen
+                # in the case of A >> B).
+                txn.get().asset_amount() * rate_decimals.load() / App.globalGet(global_rate)
             ),
             asset_to_transfer.store(
                 App.globalGet(global_asset_id_from)
             ),
             amount_to_transfer.store(
-                Gtxn[1].asset_amount() * App.globalGet(global_rate)
-            )
-        ).
-        Else(
-            asset_to_transfer.store(
-                App.globalGet(global_asset_id_to)
-            ),
-            amount_to_transfer.store(
-                Gtxn[1].asset_amount() / App.globalGet(global_rate)
+                txn.get().asset_amount() * rate_decimals.load() / App.globalGet(global_rate)
             )
         ),
         # Swap tokens.
@@ -252,7 +252,8 @@ def swap() -> Expr:
         InnerTxnBuilder.SetFields(
             {
                 TxnField.type_enum     : TxnType.AssetTransfer,
-                TxnField.asset_receiver: Txn.sender(),
+                TxnField.fee           : Int(0),
+                TxnField.asset_receiver: txn.get().sender(),
                 TxnField.xfer_asset    : asset_to_transfer.load(),
                 TxnField.asset_amount  : amount_to_transfer.load()
             }
@@ -272,10 +273,8 @@ if __name__ == "__main__":
 
     with open("../../build/approval.teal", "w") as f:
         f.write(approval_program)
-
-    with open("../../build/clear.teal", "w") as f:
+    with open("../../build/clear.teal"   , "w") as f:
         f.write(clear_state_program)
-
     with open("api.json", "w") as f:
         f.write(
             json.dumps(

@@ -2,18 +2,10 @@
     "name": "Simple Swap v0.1",
     "methods": [
         {
-            "name": "get_admin",
-            "args": [],
-            "returns": {
-                "type": "void"
-            },
-            "desc": "Lorem ipsum dolor sid amet."
-        },
-        {
-            "name": "set_admin",
+            "name": "propose_admin",
             "args": [
                 {
-                    "type": "string",
+                    "type": "address",
                     "name": "new_admin_address"
                 }
             ],
@@ -23,7 +15,7 @@
             "desc": "Lorem ipsum dolor sid amet."
         },
         {
-            "name": "get_rate",
+            "name": "accept_admin_role",
             "args": [],
             "returns": {
                 "type": "void"
@@ -37,6 +29,10 @@
                     "type": "uint64",
                     "name": "new_rate",
                     "desc": "Lorem ipsum dolor sid amet."
+                },
+                {
+                    "type": "uint64",
+                    "name": "new_rate_decimals"
                 }
             ],
             "returns": {
@@ -56,6 +52,11 @@
                     "type": "uint64",
                     "name": "asset_id_to",
                     "desc": "Lorem ipsum dolor sid amet."
+                },
+                {
+                    "type": "pay",
+                    "name": "txn",
+                    "desc": "Lorem ipsum dolor sid amet."
                 }
             ],
             "returns": {
@@ -65,7 +66,12 @@
         },
         {
             "name": "swap",
-            "args": [],
+            "args": [
+                {
+                    "type": "axfer",
+                    "name": "txn"
+                }
+            ],
             "returns": {
                 "type": "void"
             },
