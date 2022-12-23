@@ -28,7 +28,7 @@ algod_client  = algod.AlgodClient(
 
 def fund_accounts(
     accounts: list, 
-    amount: int 
+    amount  : int 
 ) -> None:
     """
         Fund the accounts.
@@ -46,10 +46,10 @@ def deploy(
         Deploy the smart contract.
 
         Args:
-            * creator_pk (str): smart contract's creator private key.
+            creator_pk (str): smart contract's creator private key.
 
         Returns:
-            * (int): if successful, return the appilcation index of the
+            (int): if successful, return the appilcation index of the
             deployed smart contract; otherwise, return -1.
     """
     with open("../../build/approval.teal", "r") as f: approval = f.read()
@@ -96,10 +96,22 @@ def deploy(
         return -1
 
 def set_rate(
-    creator_pk: str, 
-    new_rate: int, 
-    new_rate_decimals: int
+    creator_pk      : str, 
+    new_rate_integer: int, 
+    new_rate_decimal: int
 ):
+    """
+        Call "set_rate" method of the contract.
+
+        Args:
+            creator_pk (str): creator's private key.
+            new_rate_integer (int): integer part of the new swap rate.
+            new_rate_decimal (int): number of decimals of the new swap rate.
+
+        Returns:
+            (int): if successful, return the confirmation round; 
+            otherwise, return -1.
+    """
     try:
         sender = account.address_from_private_key(creator_pk)
 
@@ -115,11 +127,11 @@ def set_rate(
 
         atc.add_method_call(
             app_id=app_id,
-            method=_get_method(c, "set_rate"),
+            method=get_method(c, "set_rate"),
             sender=sender,
             sp=suggested_parameters,
             signer=signer,
-            method_args=[new_rate, new_rate_decimals]
+            method_args=[new_rate_integer, new_rate_decimal]
         )
 
         result = atc.execute(algod_client, 2)
@@ -131,9 +143,28 @@ def set_rate(
         print(e)
         return -1
 
-def optin_assets(account_pk, app_id, asset_id_from, asset_id_to):
-    sender = account.address_from_private_key(account_pk)
+def optin_assets(
+    account_pk   : str, 
+    app_id       : int, 
+    asset_id_from: int, 
+    asset_id_to  : int
+):
+    """
+        Call "optin_assets" method of the contract.
+
+        Args:
+            account_pk (str): account's private key.
+            app_id (int): application index.
+            asset_id_from (int): source ASA's ID.
+            asset_id_to (int): destination ASA's ID.
+
+        Returns:
+            (int): if successful, return the confirmation round; 
+            otherwise, return -1.
+    """
     try:
+        sender = account.address_from_private_key(account_pk)
+
         atc = AtomicTransactionComposer()
 
         signer = AccountTransactionSigner(account_pk)
@@ -156,7 +187,7 @@ def optin_assets(account_pk, app_id, asset_id_from, asset_id_to):
 
         atc.add_method_call(
             app_id=app_id,
-            method=_get_method(c, "optin_assets"),
+            method=get_method(c, "optin_assets"),
             sender=sender,
             sp=suggested_parameters,
             signer=signer,
@@ -173,7 +204,27 @@ def optin_assets(account_pk, app_id, asset_id_from, asset_id_to):
         print(e)
         return -1
 
-def swap(account_pk, app_id, asset_id_from, asset_id_to, amount_to_swap):
+def swap(
+    account_pk    : str, 
+    app_id        : int, 
+    asset_id_from : int, 
+    asset_id_to   : int, 
+    amount_to_swap: int
+):
+    """
+        Call "swap" method of the contract.
+
+        Args:
+            account_pk (str): account's private key.
+            app_id (int): application index.
+            asset_id_from (int): source ASA's ID.
+            asset_id_to (int): destination ASA's ID.
+            amount_to_swap (int): amount to swap.
+
+        Returns:
+            (int): if successful, return the confirmation round; 
+            otherwise, return -1.
+    """
     sender = account.address_from_private_key(account_pk)
     try:
         atc = AtomicTransactionComposer()
@@ -199,7 +250,7 @@ def swap(account_pk, app_id, asset_id_from, asset_id_to, amount_to_swap):
 
         atc.add_method_call(
             app_id=app_id,
-            method=_get_method(c, "swap"),
+            method=get_method(c, "swap"),
             sender=sender,
             sp=suggested_parameters,
             signer=signer,
@@ -216,10 +267,27 @@ def swap(account_pk, app_id, asset_id_from, asset_id_to, amount_to_swap):
         print(e)
         return -1
 
-def create_asa(creator_pk, manager_pk, token_conf):
-    creator = account.address_from_private_key(creator_pk)
-    manager = account.address_from_private_key(manager_pk)
+def create_asa(
+    creator_pk: str, 
+    manager_pk: str, 
+    token_conf: dict
+):
+    """
+        Create ASA.
+
+        Args:
+            creator_pk (str): creator's private key.
+            manager_pk (str): manager's private key.
+            token_conf (dict): token's configuration parameters.
+
+        Returns:
+            (int): if successful, return the asset's ID;
+            otherwise, return -1.
+    """
     try:
+        creator = account.address_from_private_key(creator_pk)
+        manager = account.address_from_private_key(manager_pk)
+
         suggested_parameters = algod_client.suggested_params()
 
         unsigned_txn = transaction.AssetConfigTxn(
@@ -252,15 +320,30 @@ def create_asa(creator_pk, manager_pk, token_conf):
         print(e)
         return -1
 
-def optin_asa(account_pk, asset_id_from):
-    sender = account.address_from_private_key(account_pk)
+def optin_asa(
+    account_pk: str, 
+    asset_id  : int
+):
+    """
+        Opt-in into ASA.
+
+        Args:
+            account_pk (str): account's private key.
+            asset_id (int): ASA's ID to opt-in.
+
+        Returns:
+            (int): if successful, return the confirmation round; 
+            otherwise, return -1.
+    """
     try:
+        sender = account.address_from_private_key(account_pk)
+
         suggested_parameters = algod_client.suggested_params()
 
         unsigned_txn = transaction.AssetOptInTxn(
             sender=sender,
             sp=suggested_parameters,
-            index=asset_id_from
+            index=asset_id
         )
         signed_txn = unsigned_txn.sign(account_pk)
 
@@ -279,9 +362,28 @@ def optin_asa(account_pk, asset_id_from):
         print(e)
         return -1
 
-def send_asa(sender_pk, receiver_addr, asset_id_from, amount):
-    sender = account.address_from_private_key(sender_pk)
+def send_asa(
+    sender_pk    : str, 
+    receiver_addr: str, 
+    asset_id     : int, 
+    amount       : int
+):
+    """
+        Send ASA.
+
+        Args:
+            sender_pk (str): senders's private key.
+            receiver_addr (str): receiver's address.
+            asset_id (int): ASA's ID to opt-in.
+            amount (int): ASA amount to send.
+
+        Returns:
+            (int): if successful, return the confirmation round; 
+            otherwise, return -1.
+    """
     try:
+        sender = account.address_from_private_key(sender_pk)
+
         suggested_parameters = algod_client.suggested_params()
 
         unsigned_txn = transaction.AssetTransferTxn(
@@ -289,7 +391,7 @@ def send_asa(sender_pk, receiver_addr, asset_id_from, amount):
             sp=suggested_parameters,
             receiver=receiver_addr,
             amt=amount,
-            index=asset_id_from
+            index=asset_id
         )
         signed_txn = unsigned_txn.sign(sender_pk)
 
@@ -308,11 +410,26 @@ def send_asa(sender_pk, receiver_addr, asset_id_from, amount):
         print(e)
         return -1
 
-def _get_method(c, name):
-    for m in c.methods:
-        if m.name == name:
-            return m
-    raise(f"No method with the name {name}")
+def get_method(
+    contract: Contract, 
+    name    : str
+):
+    """
+        Get method from a contract.
+
+        Args:
+            contract (Contract): ABI contract description.
+            name (str): method's name.
+
+        Returns:
+            (Method | None) ABI method object with initialized 
+            arguments and return types or None in case the me-
+            thod is not present in the contract.
+    """
+    for method in contract.methods:
+        if method.name == name:
+            return method
+    return None
 
 if __name__ == "__main__":
     accounts = [account.generate_account() for _ in range(0, 4)]

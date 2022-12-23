@@ -4,8 +4,8 @@ global_admin          = Bytes("admin")
 global_admin_proposal = Bytes("admin-proposal")
 global_asset_id_from  = Bytes("asset-id-from")
 global_asset_id_to    = Bytes("asset-id-to")
-global_rate           = Bytes("rate")
-global_rate_decimals  = Bytes("rate-decimals")
+global_rate_integer   = Bytes("R")
+global_rate_decimal   = Bytes("r")
 
 handle_creation = Seq(
     App.globalPut(global_admin, Txn.sender()),
@@ -55,7 +55,6 @@ def propose_admin(
 def accept_admin_role() -> Expr:
     """
         Accept the administrator's role.
-
     """
     return Seq(
         Assert(
@@ -71,15 +70,15 @@ def accept_admin_role() -> Expr:
 
 @router.method(no_op=CallConfig.CALL)
 def set_rate(
-    new_rate         : abi.Uint64,
-    new_rate_decimals: abi.Uint64
+    new_rate_integer: abi.Uint64,
+    new_rate_decimal: abi.Uint64
 ) -> Expr:
     """
         Set swap rate.
 
         Args:
-            new_rate: integer part of the new swap rate.
-            new_rate_decimals: number of decimals of the new swap rate.
+            new_rate_integer: integer part of the new swap rate.
+            new_rate_decimal: number of decimals of the new swap rate.
     """
     return Seq(
         Assert(
@@ -88,13 +87,13 @@ def set_rate(
                 # the contract.
                 Txn.sender() == App.globalGet(global_admin),
                 # Check if the new rate is greater than 0.
-                new_rate.get() > Int(0)
+                new_rate_integer.get() > Int(0)
             )
         ),
         # Set new rate.
-        App.globalPut(global_rate, new_rate.get()),
+        App.globalPut(global_rate_integer, new_rate_integer.get()),
         # Set new rate decimals.
-        App.globalPut(global_rate_decimals, new_rate_decimals.get()),
+        App.globalPut(global_rate_decimal, new_rate_decimal.get()),
         Approve()
     )
 
@@ -200,23 +199,23 @@ def swap(
             )
         ),
         # In order to calculate the swapped token amount, we need to use the eq.:
-        #                              y = x * R / r,                                                                           
+        #                              y = x * R / 10^r,                                                                           
         # where:
-        # - y is the quantity of the swapped token;
-        # - x is the quantity of the token to swap;
-        # - R is the integer part of the rate;
+        # - y is the amount of the swapped token;
+        # - x is the amount of the token to swap;
+        # - R is the integer part of the rate value;
         # - r is the number of decimals in the rate value.
         #
         # Check if:
         # 1)  the rate global variable is set;
         # 2a) in case the asset ID is equal to the source asset global variable,
-        #     check if the quantity y = x * R / r doesn't overflow;
+        #     check if the quantity y = x * R / 10^r doesn't overflow;
         # 2b) in case the asset ID is equal to the destination asset global va-
-        #     riable, check if the quantity x = y * r / R doesn't overflow.
+        #     riable, check if the quantity x = y * 10^r / R doesn't overflow.
         Assert(
-            App.globalGet(global_rate) > Int(0)
+            App.globalGet(global_rate_integer) > Int(0)
         ),
-        rate_decimals.store(Exp(Int(10), App.globalGet(global_rate_decimals))),
+        rate_decimals.store(Exp(Int(10), App.globalGet(global_rate_decimal))),
         If(
             txn.get().xfer_asset() == App.globalGet(global_asset_id_from),
         ).
@@ -224,13 +223,13 @@ def swap(
             Assert(
                 # Assuming that, in the division A * B, B is greater than 0, we have to
                 # check if the product of the multipilcation doesn't overflow.
-                txn.get().asset_amount() * App.globalGet(global_rate) / rate_decimals.load()
+                txn.get().asset_amount() * App.globalGet(global_rate_integer) / rate_decimals.load()
             ),
             asset_to_transfer.store(
                 App.globalGet(global_asset_id_to)
             ),
             amount_to_transfer.store(
-                txn.get().asset_amount() * App.globalGet(global_rate) / rate_decimals.load()
+                txn.get().asset_amount() * App.globalGet(global_rate_integer) / rate_decimals.load()
             )
         ).
         Else(
@@ -238,13 +237,13 @@ def swap(
                 # Assuming that, in the division A / B, B is greater than 0, we have to
                 # check if the quotient of the division doesn't overflow (It may happen
                 # in the case of A >> B).
-                txn.get().asset_amount() * rate_decimals.load() / App.globalGet(global_rate)
+                txn.get().asset_amount() * rate_decimals.load() / App.globalGet(global_rate_integer)
             ),
             asset_to_transfer.store(
                 App.globalGet(global_asset_id_from)
             ),
             amount_to_transfer.store(
-                txn.get().asset_amount() * rate_decimals.load() / App.globalGet(global_rate)
+                txn.get().asset_amount() * rate_decimals.load() / App.globalGet(global_rate_integer)
             )
         ),
         # Swap tokens.

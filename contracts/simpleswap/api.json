@@ -12,7 +12,7 @@
             "returns": {
                 "type": "void"
             },
-            "desc": "Lorem ipsum dolor sid amet."
+            "desc": "Propose a new administrator."
         },
         {
             "name": "accept_admin_role",
@@ -20,25 +20,26 @@
             "returns": {
                 "type": "void"
             },
-            "desc": "Lorem ipsum dolor sid amet."
+            "desc": "Accept the administrator's role."
         },
         {
             "name": "set_rate",
             "args": [
                 {
                     "type": "uint64",
-                    "name": "new_rate",
-                    "desc": "Lorem ipsum dolor sid amet."
+                    "name": "new_rate_integer",
+                    "desc": "integer part of the new swap rate."
                 },
                 {
                     "type": "uint64",
-                    "name": "new_rate_decimals"
+                    "name": "new_rate_decimal",
+                    "desc": "number of decimals of the new swap rate."
                 }
             ],
             "returns": {
                 "type": "void"
             },
-            "desc": "Lorem ipsum dolor sid amet."
+            "desc": "Set swap rate."
         },
         {
             "name": "optin_assets",
@@ -46,36 +47,37 @@
                 {
                     "type": "uint64",
                     "name": "asset_id_from",
-                    "desc": "Lorem ipsum dolor sid amet."
+                    "desc": "source asset."
                 },
                 {
                     "type": "uint64",
                     "name": "asset_id_to",
-                    "desc": "Lorem ipsum dolor sid amet."
+                    "desc": "destination asset."
                 },
                 {
                     "type": "pay",
                     "name": "txn",
-                    "desc": "Lorem ipsum dolor sid amet."
+                    "desc": "payment transaction."
                 }
             ],
             "returns": {
                 "type": "void"
             },
-            "desc": "Lorem ipsum dolor sid amet."
+            "desc": "Opt-in assets."
         },
         {
             "name": "swap",
             "args": [
                 {
                     "type": "axfer",
-                    "name": "txn"
+                    "name": "txn",
+                    "desc": "asset transfer transaction."
                 }
             ],
             "returns": {
                 "type": "void"
             },
-            "desc": "Lorem ipsum dolor sid amet."
+            "desc": "Swap asset."
         }
     ],
     "networks": {}
