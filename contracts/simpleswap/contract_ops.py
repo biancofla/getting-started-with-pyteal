@@ -3,8 +3,8 @@ from algosdk.atomic_transaction_composer import (
     AccountTransactionSigner, 
     TransactionWithSigner
 )
+from algosdk.v2client import algod, indexer
 from algosdk.future import transaction
-from algosdk.v2client import algod
 from algosdk.abi import Contract
 from algosdk import (
     account,
@@ -25,6 +25,14 @@ algod_client  = algod.AlgodClient(
     algod_token=algod_token, 
     algod_address=algod_address
 )
+# Indexer client configuration.
+indexer_address = "http://localhost:8980"
+indexer_token   = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+indexer_client  = indexer.IndexerClient(
+    indexer_token=indexer_token,
+    indexer_address=indexer_address
+)
+
 
 def fund_accounts(
     accounts: list, 
@@ -95,29 +103,27 @@ def deploy(
         print(e)
         return -1
 
-def set_rate(
-    creator_pk      : str, 
-    new_rate_integer: int, 
-    new_rate_decimal: int
-):
+def propose_admin(
+    admin_pk           : str,
+    admin_proposal_addr: str
+) -> int:
     """
-        Call "set_rate" method of the contract.
+        Call "propose_admin" method of the contract.
 
         Args:
-            creator_pk (str): creator's private key.
-            new_rate_integer (int): integer part of the new swap rate.
-            new_rate_decimal (int): number of decimals of the new swap rate.
+            admin_pk (str): administrator's private key.
+            admin_proposal_addr (str): proposed administrator address.
 
         Returns:
             (int): if successful, return the confirmation round; 
             otherwise, return -1.
     """
     try:
-        sender = account.address_from_private_key(creator_pk)
+        sender = account.address_from_private_key(admin_pk)
 
         atc = AtomicTransactionComposer()
 
-        signer = AccountTransactionSigner(creator_pk)
+        signer = AccountTransactionSigner(admin_pk)
 
         suggested_parameters = algod_client.suggested_params()
 
@@ -127,7 +133,98 @@ def set_rate(
 
         atc.add_method_call(
             app_id=app_id,
-            method=get_method(c, "set_rate"),
+            method=_get_method(c, "propose_admin"),
+            sender=sender,
+            sp=suggested_parameters,
+            signer=signer,
+            method_args=[admin_proposal_addr]
+        )
+
+        result = atc.execute(algod_client, 2)
+
+        confirmation_round = result.confirmed_round
+
+        return confirmation_round
+    except error.AlgodHTTPError as e:
+        print(e)
+        return -1
+
+def accept_admin_role(
+    new_admin_pk: str
+) -> int:
+    """
+        Call "accept_admin_role" method of the contract.
+
+        Args:
+            new_admin_pk (str): new administrator's private key.
+
+        Returns:
+            (int): if successful, return the confirmation round; 
+            otherwise, return -1.
+    """
+    try:
+        sender = account.address_from_private_key(new_admin_pk)
+
+        atc = AtomicTransactionComposer()
+
+        signer = AccountTransactionSigner(new_admin_pk)
+
+        suggested_parameters = algod_client.suggested_params()
+
+        with open("./api.json") as f:
+            js = f.read()
+        c = Contract.from_json(js)
+
+        atc.add_method_call(
+            app_id=app_id,
+            method=_get_method(c, "accept_admin_role"),
+            sender=sender,
+            sp=suggested_parameters,
+            signer=signer
+        )
+
+        result = atc.execute(algod_client, 2)
+
+        confirmation_round = result.confirmed_round
+
+        return confirmation_round
+    except error.AlgodHTTPError as e:
+        print(e)
+        return -1
+
+def set_rate(
+    admin_pk        : str, 
+    new_rate_integer: int, 
+    new_rate_decimal: int
+):
+    """
+        Call "set_rate" method of the contract.
+
+        Args:
+            admin_pk (str): administrator's private key.
+            new_rate_integer (int): integer part of the new swap rate.
+            new_rate_decimal (int): number of decimals of the new swap rate.
+
+        Returns:
+            (int): if successful, return the confirmation round; 
+            otherwise, return -1.
+    """
+    try:
+        sender = account.address_from_private_key(admin_pk)
+
+        atc = AtomicTransactionComposer()
+
+        signer = AccountTransactionSigner(admin_pk)
+
+        suggested_parameters = algod_client.suggested_params()
+
+        with open("./api.json") as f:
+            js = f.read()
+        c = Contract.from_json(js)
+
+        atc.add_method_call(
+            app_id=app_id,
+            method=_get_method(c, "set_rate"),
             sender=sender,
             sp=suggested_parameters,
             signer=signer,
@@ -144,7 +241,7 @@ def set_rate(
         return -1
 
 def optin_assets(
-    account_pk   : str, 
+    admin_pk     : str, 
     app_id       : int, 
     asset_id_from: int, 
     asset_id_to  : int
@@ -153,7 +250,7 @@ def optin_assets(
         Call "optin_assets" method of the contract.
 
         Args:
-            account_pk (str): account's private key.
+            admin_pk (str): administrator's private key.
             app_id (int): application index.
             asset_id_from (int): source ASA's ID.
             asset_id_to (int): destination ASA's ID.
@@ -163,11 +260,11 @@ def optin_assets(
             otherwise, return -1.
     """
     try:
-        sender = account.address_from_private_key(account_pk)
+        sender = account.address_from_private_key(admin_pk)
 
         atc = AtomicTransactionComposer()
 
-        signer = AccountTransactionSigner(account_pk)
+        signer = AccountTransactionSigner(admin_pk)
 
         suggested_parameters = algod_client.suggested_params()
         suggested_parameters.flat_fee = True
@@ -187,7 +284,7 @@ def optin_assets(
 
         atc.add_method_call(
             app_id=app_id,
-            method=get_method(c, "optin_assets"),
+            method=_get_method(c, "optin_assets"),
             sender=sender,
             sp=suggested_parameters,
             signer=signer,
@@ -250,7 +347,7 @@ def swap(
 
         atc.add_method_call(
             app_id=app_id,
-            method=get_method(c, "swap"),
+            method=_get_method(c, "swap"),
             sender=sender,
             sp=suggested_parameters,
             signer=signer,
@@ -268,16 +365,16 @@ def swap(
         return -1
 
 def create_asa(
-    creator_pk: str, 
-    manager_pk: str, 
-    token_conf: dict
+    asa_creator_pk: str, 
+    asa_manager_pk: str, 
+    token_conf    : dict
 ):
     """
         Create ASA.
 
         Args:
-            creator_pk (str): creator's private key.
-            manager_pk (str): manager's private key.
+            asa_creator_pk (str): ASA creator's private key.
+            asa_manager_pk (str): ASA manager's private key.
             token_conf (dict): token's configuration parameters.
 
         Returns:
@@ -285,8 +382,8 @@ def create_asa(
             otherwise, return -1.
     """
     try:
-        creator = account.address_from_private_key(creator_pk)
-        manager = account.address_from_private_key(manager_pk)
+        creator = account.address_from_private_key(asa_creator_pk)
+        manager = account.address_from_private_key(asa_manager_pk)
 
         suggested_parameters = algod_client.suggested_params()
 
@@ -303,7 +400,7 @@ def create_asa(
             clawback=manager,
             decimals=token_conf["decimals"]
         )
-        signed_txn = unsigned_txn.sign(creator_pk)
+        signed_txn = unsigned_txn.sign(asa_creator_pk)
 
         txn_id = algod_client.send_transaction(signed_txn)
 
@@ -410,12 +507,51 @@ def send_asa(
         print(e)
         return -1
 
-def get_method(
+def get_application_global_state(
+    app_id: int
+) -> int:
+    """
+        Get application's global state.
+
+        Args:
+            app_id (int): application index.
+
+        Returns:
+            (dict): application's global state.
+    """
+    global_state = {}
+    
+    try:
+        app = indexer_client.applications(app_id)
+
+        for variable in app["application"]["params"]["global-state"]:
+            print(variable)
+
+            key   = variable["key"]
+            value = variable["value"]
+
+            key_decoded = base64.b64decode(key).decode()
+
+            if value["type"] == 1:
+                value_decoded = base64.b64decode(value["bytes"])
+            else:
+                value_decoded = value["uint"]
+
+            print(key_decoded)
+            print(value_decoded)
+
+            global_state[key_decoded] = value_decoded
+    except error.IndexerHTTPError as e:
+        print(e)
+    finally:
+        return global_state
+
+def _get_method(
     contract: Contract, 
     name    : str
 ):
     """
-        Get method from a contract.
+        Get ABI method object from a contract.
 
         Args:
             contract (Contract): ABI contract description.
@@ -440,99 +576,101 @@ if __name__ == "__main__":
 
     fund_accounts([logic.get_application_address(app_id)], 100000)
 
-    token_a_conf = {
-        "unit_name" : "Token A",
-        "asset_name": "token_a",
-        "total"     : 1e9,
-        "decimals"  : 6
-    }
-    token_a_id = create_asa(
-        creator_pk=accounts[1][0],
-        manager_pk=accounts[2][0],
-        token_conf=token_a_conf
-    )
 
-    token_b_conf = {
-        "unit_name" : "Token B",
-        "asset_name": "token_b",
-        "total"     : 1e9,
-        "decimals"  : 6
-    }
-    token_b_id = create_asa(
-        creator_pk=accounts[1][0],
-        manager_pk=accounts[2][0],
-        token_conf=token_b_conf
-    )
 
-    print("Opt-in Contract")
-    cr_optin = optin_assets(
-        accounts[0][0],
-        app_id,
-        token_a_id,
-        token_b_id
-    )
+    # token_a_conf = {
+    #     "unit_name" : "Token A",
+    #     "asset_name": "token_a",
+    #     "total"     : 1e9,
+    #     "decimals"  : 6
+    # }
+    # token_a_id = create_asa(
+    #     creator_pk=accounts[1][0],
+    #     manager_pk=accounts[2][0],
+    #     token_conf=token_a_conf
+    # )
 
-    print("Send Token A to swap program")
-    cr_send_asa = send_asa(
-        sender_pk=accounts[1][0],
-        receiver_addr=logic.get_application_address(app_id),
-        asset_id_from=token_a_id,
-        amount=int(1e6)
-    )
-    print("Send Token B to swap program")
-    cr_send_asa = send_asa(
-        sender_pk=accounts[1][0],
-        receiver_addr=logic.get_application_address(app_id),
-        asset_id_from=token_b_id,
-        amount=int(1e6)
-    )
+    # token_b_conf = {
+    #     "unit_name" : "Token B",
+    #     "asset_name": "token_b",
+    #     "total"     : 1e9,
+    #     "decimals"  : 6
+    # }
+    # token_b_id = create_asa(
+    #     creator_pk=accounts[1][0],
+    #     manager_pk=accounts[2][0],
+    #     token_conf=token_b_conf
+    # )
 
-    print("Opt-in Token A")
-    cr_optin_token_a = optin_asa(
-        account_pk=accounts[3][0],
-        asset_id_from=token_a_id
-    )
-    print("Opt-in Token B")
-    cr_optin_token_a = optin_asa(
-        account_pk=accounts[3][0],
-        asset_id_from=token_b_id
-    )
+    # print("Opt-in Contract")
+    # cr_optin = optin_assets(
+    #     accounts[0][0],
+    #     app_id,
+    #     token_a_id,
+    #     token_b_id
+    # )
 
-    print("Send Token A to account")
-    cr_send_asa = send_asa(
-        sender_pk=accounts[1][0],
-        receiver_addr=accounts[3][1],
-        asset_id_from=token_a_id,
-        amount=1000000
-    )
-    print("Send Token B to account")
-    cr_send_asa = send_asa(
-        sender_pk=accounts[1][0],
-        receiver_addr=accounts[3][1],
-        asset_id_from=token_b_id,
-        amount=1000000
-    )
+    # print("Send Token A to swap program")
+    # cr_send_asa = send_asa(
+    #     sender_pk=accounts[1][0],
+    #     receiver_addr=logic.get_application_address(app_id),
+    #     asset_id_from=token_a_id,
+    #     amount=int(1e6)
+    # )
+    # print("Send Token B to swap program")
+    # cr_send_asa = send_asa(
+    #     sender_pk=accounts[1][0],
+    #     receiver_addr=logic.get_application_address(app_id),
+    #     asset_id_from=token_b_id,
+    #     amount=int(1e6)
+    # )
 
-    print("Set conversion rate")
-    cr_set_rate = set_rate(
-        creator_pk=accounts[0][0],
-        new_rate=5,
-        new_rate_decimals=1
-    )
+    # print("Opt-in Token A")
+    # cr_optin_token_a = optin_asa(
+    #     account_pk=accounts[3][0],
+    #     asset_id_from=token_a_id
+    # )
+    # print("Opt-in Token B")
+    # cr_optin_token_a = optin_asa(
+    #     account_pk=accounts[3][0],
+    #     asset_id_from=token_b_id
+    # )
 
-    print("Swap Token A to Token B")
-    cr_swap_1 = swap(
-       account_pk=accounts[3][0],
-       app_id=app_id,
-       asset_id_from=token_a_id,
-       asset_id_to=token_b_id,
-       amount_to_swap=500000
-    )
-    print("Swap Token B to Token A")
-    cr_swap_2 = swap(
-       account_pk=accounts[3][0],
-       app_id=app_id,
-       asset_id_from=token_b_id,
-       asset_id_to=token_a_id,
-       amount_to_swap=500000
-    )
+    # print("Send Token A to account")
+    # cr_send_asa = send_asa(
+    #     sender_pk=accounts[1][0],
+    #     receiver_addr=accounts[3][1],
+    #     asset_id_from=token_a_id,
+    #     amount=1000000
+    # )
+    # print("Send Token B to account")
+    # cr_send_asa = send_asa(
+    #     sender_pk=accounts[1][0],
+    #     receiver_addr=accounts[3][1],
+    #     asset_id_from=token_b_id,
+    #     amount=1000000
+    # )
+
+    # print("Set conversion rate")
+    # cr_set_rate = set_rate(
+    #     creator_pk=accounts[0][0],
+    #     new_rate=5,
+    #     new_rate_decimals=1
+    # )
+
+    # print("Swap Token A to Token B")
+    # cr_swap_1 = swap(
+    #    account_pk=accounts[3][0],
+    #    app_id=app_id,
+    #    asset_id_from=token_a_id,
+    #    asset_id_to=token_b_id,
+    #    amount_to_swap=500000
+    # )
+    # print("Swap Token B to Token A")
+    # cr_swap_2 = swap(
+    #    account_pk=accounts[3][0],
+    #    app_id=app_id,
+    #    asset_id_from=token_b_id,
+    #    asset_id_to=token_a_id,
+    #    amount_to_swap=500000
+    # )

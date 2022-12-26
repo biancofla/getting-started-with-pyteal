@@ -27,7 +27,7 @@ router = Router(
         clear_state=OnCompleteAction.never(),
         # On update/delete application, just reject the bare calls.
         update_application=OnCompleteAction.always(Reject()),
-        delete_application=OnCompleteAction.always(Reject()),
+        delete_application=OnCompleteAction.always(Reject())
     )
 )
 
