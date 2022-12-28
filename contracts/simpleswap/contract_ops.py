@@ -268,7 +268,7 @@ def optin_assets(
 
         suggested_parameters = algod_client.suggested_params()
         suggested_parameters.flat_fee = True
-        suggested_parameters.fee = 3000
+        suggested_parameters.fee = 1000
 
         with open("./api.json") as f:
             js = f.read()
@@ -281,6 +281,8 @@ def optin_assets(
             amt=200000
         )
         signed_payment_txn = TransactionWithSigner(payment_txn, signer)
+
+        suggested_parameters.fee = 3000
 
         atc.add_method_call(
             app_id=app_id,
@@ -509,7 +511,7 @@ def send_asa(
 
 def get_application_global_state(
     app_id: int
-) -> int:
+) -> dict:
     """
         Get application's global state.
 
@@ -524,9 +526,7 @@ def get_application_global_state(
     try:
         app = indexer_client.applications(app_id)
 
-        for variable in app["application"]["params"]["global-state"]:
-            print(variable)
-
+        for variable in app["application"]["params"]["global-state"]: 
             key   = variable["key"]
             value = variable["value"]
 
@@ -545,6 +545,24 @@ def get_application_global_state(
         print(e)
     finally:
         return global_state
+
+def get_asa_details(
+    asset_id: int
+) -> dict:
+    """
+        Get asset information.
+
+        Args:
+            asset_id (int): asset id.
+
+        Returns:
+            (dict): asset information.
+    """
+    try:
+        return indexer_client.asset_info(asset_id=asset_id)
+    except error.IndexerHTTPError as e:
+        print(e)
+        return {}
 
 def _get_method(
     contract: Contract, 
@@ -575,8 +593,6 @@ if __name__ == "__main__":
     app_id = deploy(creator_pk=accounts[0][0])
 
     fund_accounts([logic.get_application_address(app_id)], 100000)
-
-
 
     # token_a_conf = {
     #     "unit_name" : "Token A",
