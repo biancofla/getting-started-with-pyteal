@@ -6,10 +6,6 @@ from algosdk import (
     error
 )
 
-# Faucet configuration.
-FAUCET_MNEMONIC    = "<FAUCET_MNEMONIC>"
-FAUCET_PRIVATE_KEY = mnemonic.to_private_key(FAUCET_MNEMONIC)
-
 algod_address = "http://localhost:4001"
 algod_token   = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 algod_client  = algod.AlgodClient(
@@ -18,48 +14,55 @@ algod_client  = algod.AlgodClient(
 )
 
 
-def fund_account(
-    receiver: str, 
-    amount  : int
-) -> int:
-    """
-        Fund an account using a faucet account.
+class Faucet:
 
-        Args:
-            receiver (str): receiver's address.
-            amount (int): amount to send.
+    def __init__(self, passphrase):
+        self.passphrase  = passphrase
+        self.private_key = mnemonic.from_private_key(passphrase)
 
-        Returns:
-            (int): if successful, return the confirmation round; 
-            otherwise, return -1.
-    """
-    try:
-        sender = account.address_from_private_key(FAUCET_PRIVATE_KEY)
+    def dispense(
+        self,
+        receiver_addr: str,
+        amount       : int
+    ) -> int:
+        """
+            Dispense ALGOs.
 
-        suggested_parameters = algod_client.suggested_params()
+            Args:
+                receiver (str): receiver's address.
+                amount (int): amount to send.
 
-        unsigned_txn = transaction.PaymentTxn(
-            sender=sender,
-            sp=suggested_parameters,
-            receiver=receiver,
-            amt=amount
-        )
-        signed_txn = unsigned_txn.sign(FAUCET_PRIVATE_KEY)
+            Returns:
+                (int): if successful, return the confirmation round; 
+                otherwise, return -1.
+        """
+        try:
+            sender = account.address_from_private_key(self.private_key)
 
-        txn_id = algod_client.send_transaction(signed_txn)
+            suggested_parameters = algod_client.suggested_params()
 
-        result = transaction.wait_for_confirmation(
-            algod_client=algod_client,
-            txid=txn_id,
-            wait_rounds=2
-        )
+            unsigned_txn = transaction.PaymentTxn(
+                sender=sender,
+                sp=suggested_parameters,
+                receiver=receiver_addr,
+                amt=amount
+            )
+            signed_txn = unsigned_txn.sign(self.private_key)
 
-        confirmation_round = result["confirmed-round"]
+            txn_id = algod_client.send_transaction(signed_txn)
 
-        return confirmation_round
-    except error.AlgodHTTPError as e:
-        print(e)
-        return -1
+            result = transaction.wait_for_confirmation(
+                algod_client=algod_client,
+                txid=txn_id,
+                wait_rounds=2
+            )
+
+            confirmation_round = result["confirmed-round"]
+
+            return confirmation_round
+        except error.AlgodHTTPError as e:
+            print(e)
+            return -1
 
 
 if __name__ == "__main__":

@@ -4,15 +4,26 @@ from algosdk import (
 )
 
 from contract_ops import *
+from faucet import Faucet
 
+import pytest
 import time
 
-def test_deploy():
+
+@pytest.fixture(scope="session")
+def faucet():
+    faucet = Faucet(
+        passphrase="<FAUCET_PASSPHRASE>"
+    )
+    yield faucet
+
+
+def test_deploy(faucet):
     creator_pk, creator_addr = account.generate_account()
 
-    fund_accounts(
-        accounts=[creator_addr], 
-        # 415000 microAlgos are required to deploy the smart-contract:
+    faucet.dispense(
+        receiver_addr=creator_addr, 
+        # 415000 microAlgos are required in order to deploy the smart-contract:
         # * 100,000 is the minimum standard required balance;
         # * 100,000 is the per page creation application fee;
         # * (25,000 + 3,500 ) * 4 = 114,000 is the addition per integer entry;
@@ -33,11 +44,11 @@ def test_deploy():
     assert admin_addr == creator_addr
 
 
-def test_propose_admin():
+def test_propose_admin(faucet):
     admin_pk, admin_addr = account.generate_account()
 
-    fund_accounts(
-        accounts=[admin_addr], 
+    faucet.dispense(
+        receiver_addr=admin_addr, 
         # Total balance required is 416000 microAlgos:
         # 1) 415000 microAlgos are required to deploy the smart-contract:
         #   * 100,000 is the minimum standard required balance;
@@ -74,11 +85,11 @@ def test_propose_admin():
     )
 
 
-def test_accept_admin_role():
+def test_accept_admin_role(faucet):
     admin_pk, admin_addr = account.generate_account()
 
-    fund_accounts(
-        accounts=[admin_addr], 
+    faucet.dispense(
+        receiver_addr=admin_addr, 
         # Total balance required is 416000 microAlgos:
         # 1) 415000 microAlgos are required to deploy the smart-contract:
         #   * 100,000 is the minimum standard required balance;
@@ -101,8 +112,8 @@ def test_accept_admin_role():
         admin_proposal_addr=new_admin_addr
     )
 
-    fund_accounts(
-        accounts=[new_admin_addr], 
+    faucet.dispense(
+        receiver_addr=new_admin_addr, 
         # Total balance required is 416000 microAlgos:
         # 1) 415000 microAlgos are required to deploy the smart-contract:
         #   * 100,000 is the minimum standard required balance;
@@ -111,7 +122,7 @@ def test_accept_admin_role():
         #   * (25,000 + 25,000) * 2 = 50,000  is the addition per byte slice entry;
         #   * 1000 is the transaction fee.
         # 2) 1000 microAlgos are the fee required to perform the smart-contract call 
-        #    'propose_admin'.
+        #    'accept_admin_role'.
         amount=101000
     )
 
@@ -134,11 +145,11 @@ def test_accept_admin_role():
     )
 
 
-def test_set_rate():
+def test_set_rate(faucet):
     admin_pk, admin_addr = account.generate_account()
 
-    fund_accounts(
-        accounts=[admin_addr], 
+    faucet.dispense(
+        receiver_addr=admin_addr, 
         # Total balance required is 416000 microAlgos:
         # 1) 415000 microAlgos are required to deploy the smart-contract:
         #   * 100,000 is the minimum standard required balance;
@@ -171,18 +182,18 @@ def test_set_rate():
     assert rate_integer * (10 ** - rate_decimal) == 0.5
 
 
-def test_optin_assets():
+def test_optin_assets(faucet):
     sm_creator_pk, sm_creator_addr = account.generate_account()
 
-    fund_accounts(
-        accounts=[sm_creator_addr], 
+    faucet.dispense(
+        receiver_addr=sm_creator_addr, 
         # Total balance required is 619000 microAlgos:
         # 1) 415000 microAlgos are required to deploy the smart-contract:
         #   * 100,000 is the minimum standard required balance;
         #   * 100,000 is the per page creation application fee;
         #   * (25,000 + 3,500 ) * 4 = 114,000 is the addition per integer entry;
         #   * (25,000 + 25,000) * 2 = 50,000  is the addition per byte slice entry;
-        #   * 1000 is the transaction fee.
+        #   * 1000 is the transaction fees.
         # 2) 204000 microAlgos are required to perform the smart-contract call 
         #    'optin_assets':
         #   * 200,000 is the minimum amount of microAlgos that the smart 
@@ -197,14 +208,14 @@ def test_optin_assets():
     asa_creator_pk, asa_creator_addr = account.generate_account()
     asa_manager_pk                   = account.generate_account()[0]
 
-    fund_accounts(
-        accounts=[asa_creator_addr], 
+    faucet.dispense(
+        receiver_addr=asa_creator_addr, 
         # Total balance required is 302000 microAlgos:
         # * 100,000 is the minimum standard required balance;
         # * 200,000 is the minimum amount of microAlgos that the account 
         #   needs in order to handle two new ASAs;
-        # * 2000 are the transactions fees needed to perform two create
-        #   ASA operations.
+        # * 2000 are the transactions fees needed to perform two ASAs
+        #   creation operations.
         amount=302000
     )
 
@@ -231,12 +242,12 @@ def test_optin_assets():
         token_conf=token_b_conf
     )
     
-    fund_accounts(
-        accounts=[logic.get_application_address(app_id)], 
+    faucet.dispense(
+        receiver_addr=logic.get_application_address(app_id), 
         # Total balance required is 300000 microAlgos:
         # * 100,000 is the minimum standard required balance;
         # * 200,000 is the minimum amount of microAlgos that the account 
-        #   needs in order to handle two new ASAs;
+        #   needs in order to handle two new ASAs.
         amount=300000
     )
 
@@ -260,11 +271,12 @@ def test_optin_assets():
         sm_creator_addr                   == admin_addr
     )
 
-def test_swap():
+
+def test_swap(faucet):
     sm_creator_pk, sm_creator_addr = account.generate_account()
 
-    fund_accounts(
-        accounts=[sm_creator_addr], 
+    faucet.dispense(
+        receiver_addr=sm_creator_addr, 
         # Total balance required is 620000 microAlgos:
         # 1) 415000 microAlgos are required to deploy the smart-contract:
         #   * 100,000 is the minimum standard required balance;
@@ -288,10 +300,10 @@ def test_swap():
     asa_creator_pk, asa_creator_addr = account.generate_account()
     asa_manager_pk                   = account.generate_account()[0]
 
-    fund_accounts(
-        accounts=[asa_creator_addr], 
+    faucet.dispense(
+        receiver_addr=asa_creator_addr, 
         # Total balance required is 306000 microAlgos:
-        # 1) 302000 microAlgos are required in ordert to create and handle
+        # 1) 302000 microAlgos are required in order to create and handle
         #    two ASAs:
         #   * 100,000 is the minimum standard required balance;
         #   * 200,000 is the minimum amount of microAlgos that the account 
@@ -329,12 +341,12 @@ def test_swap():
 
     app_addr = logic.get_application_address(app_id)
     
-    fund_accounts(
-        accounts=[app_addr], 
+    faucet.dispense(
+        receiver_addr=app_addr, 
         # Total balance required is 300000 microAlgos:
         # * 100,000 is the minimum standard required balance;
         # * 200,000 is the minimum amount of microAlgos that the account 
-        #   needs in order to handle two new ASAs;
+        #   needs in order to handle two new ASAs.
         amount=300000
     )
 
@@ -360,14 +372,16 @@ def test_swap():
 
     asa_user_pk, asa_user_addr = account.generate_account()
 
-    fund_accounts(
-        accounts=[asa_user_addr], 
+    faucet.dispense(
+        receiver_addr=asa_user_addr, 
         # Total balance required is 308000 microAlgos:
-        # * 100,000 is the minimum standard required balance;
-        # * 200,000 is the minimum amount of microAlgos that the account 
-        #   needs in order to handle two new ASAs;
-        # * 8000 are the transactions fees required (opt-in into two new
-        #   ASAs + two swap operations).
+        # 1) 300000 microAlgos are required in order to handle two ASAs:
+        #   * 100,000 is the minimum standard required balance;
+        #   * 200,000 is the minimum amount of microAlgos that the account 
+        #     needs in order to handle two new ASAs.
+        #   8 2000 are the fee needed to perform two opt-in operations.
+        # 2) 8000 are the fee required to perform two smart-contract calls 
+        #    to the 'swap' method (3000 microAlgos per call).
         amount=308000
     )
 
