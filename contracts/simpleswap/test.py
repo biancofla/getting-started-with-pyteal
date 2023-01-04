@@ -23,7 +23,7 @@ def test_deploy(faucet):
 
     faucet.dispense(
         receiver_addr=creator_addr, 
-        # 415000 microAlgos are required in order to deploy the smart-contract:
+        # Total balance required is 415000 microAlgos:
         # * 100,000 is the minimum standard required balance;
         # * 100,000 is the per page creation application fee;
         # * (25,000 + 3,500 ) * 4 = 114,000 is the addition per integer entry;
@@ -114,13 +114,8 @@ def test_accept_admin_role(faucet):
 
     faucet.dispense(
         receiver_addr=new_admin_addr, 
-        # Total balance required is 416000 microAlgos:
-        # 1) 415000 microAlgos are required to deploy the smart-contract:
-        #   * 100,000 is the minimum standard required balance;
-        #   * 100,000 is the per page creation application fee;
-        #   * (25,000 + 3,500 ) * 4 = 114,000 is the addition per integer entry;
-        #   * (25,000 + 25,000) * 2 = 50,000  is the addition per byte slice entry;
-        #   * 1000 is the transaction fee.
+        # Total balance required is 101000 microAlgos:
+        # 1) 100,000 microAlgos is the minimum standard required balance;
         # 2) 1000 microAlgos are the fee required to perform the smart-contract call 
         #    'accept_admin_role'.
         amount=101000

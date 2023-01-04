@@ -60,3 +60,4 @@ To run one of the contracts, have a look at these `README.md` files:
 
 * [Counter](https://github.com/biancofla/getting-started-with-pyteal/tree/main/contracts/counter)
 * [Rock, Paper, Scissors](https://github.com/biancofla/getting-started-with-pyteal/tree/main/contracts/rps)
+* [Simple Swap](https://github.com/biancofla/getting-started-with-pyteal/tree/main/contracts/simpleswap)
