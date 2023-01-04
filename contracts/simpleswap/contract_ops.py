@@ -14,8 +14,6 @@ from algosdk import (
 
 from pyteal import *
 
-from faucet import fund_account
-
 import base64
 
 # Algod client configuration.
@@ -32,20 +30,6 @@ indexer_client  = indexer.IndexerClient(
     indexer_token=indexer_token,
     indexer_address=indexer_address
 )
-
-
-def fund_accounts(
-    accounts: list, 
-    amount  : int 
-) -> None:
-    """
-        Fund the accounts.
-
-        Args:
-            accounts (list): accounts to feed.
-    """
-    for account in accounts: 
-        fund_account(account, amount)
 
 
 def deploy(

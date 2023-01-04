@@ -18,7 +18,8 @@ class Faucet:
 
     def __init__(self, passphrase):
         self.passphrase  = passphrase
-        self.private_key = mnemonic.from_private_key(passphrase)
+        self.private_key = mnemonic.to_private_key(self.passphrase)
+
 
     def dispense(
         self,
@@ -38,6 +39,7 @@ class Faucet:
         """
         try:
             sender = account.address_from_private_key(self.private_key)
+            print(sender)
 
             suggested_parameters = algod_client.suggested_params()
 
