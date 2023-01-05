@@ -223,12 +223,13 @@ def swap(
             Assert(
                 # Assuming that, in the division A * B, B is greater than 0, we have to
                 # check if the product of the multiplication doesn't overflow.
-                amount_to_transfer.store(
-                    txn.get().asset_amount() * App.globalGet(global_rate_integer) / rate_decimals.load()
-                )
+                txn.get().asset_amount() * App.globalGet(global_rate_integer) / rate_decimals.load()
             ),
             asset_to_transfer.store(
                 App.globalGet(global_asset_id_to)
+            ),
+            amount_to_transfer.store(
+                txn.get().asset_amount() * App.globalGet(global_rate_integer) / rate_decimals.load()
             )
         ).
         Else(
@@ -236,12 +237,13 @@ def swap(
                 # Assuming that, in the division A / B, B is greater than 0, we have to
                 # check if the quotient of the division doesn't overflow (It may happen
                 # in the case of A >> B).
-                amount_to_transfer.store(
-                    txn.get().asset_amount() * rate_decimals.load() / App.globalGet(global_rate_integer)
-                )
+                txn.get().asset_amount() * rate_decimals.load() / App.globalGet(global_rate_integer)
             ),
             asset_to_transfer.store(
                 App.globalGet(global_asset_id_from)
+            ),
+            amount_to_transfer.store(
+                txn.get().asset_amount() * rate_decimals.load() / App.globalGet(global_rate_integer)
             )
         ),
         # Swap tokens.
