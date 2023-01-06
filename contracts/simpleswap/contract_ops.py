@@ -95,7 +95,7 @@ def propose_admin(
     admin_proposal_addr: str
 ) -> int:
     """
-        Call "propose_admin" method of the contract.
+        Call smart contracrt method "propose_admin".
 
         Args:
             admin_pk (str): administrator's private key.
@@ -143,7 +143,7 @@ def accept_admin_role(
     app_id      : int
 ) -> int:
     """
-        Call "accept_admin_role" method of the contract.
+        Call smart contract method "accept_admin_role".
 
         Args:
             new_admin_pk (str): new administrator's private key.
@@ -191,7 +191,7 @@ def set_rate(
     new_rate_decimal: int
 ):
     """
-        Call "set_rate" method of the contract.
+        Call smart contract method "set_rate".
 
         Args:
             admin_pk (str): administrator's private key.
@@ -242,7 +242,7 @@ def optin_assets(
     asset_id_to  : int
 ):
     """
-        Call "optin_assets" method of the contract.
+        Call smart contract method "optin_assets".
 
         Args:
             admin_pk (str): administrator's private key.
@@ -307,7 +307,7 @@ def swap(
     amount_to_swap: int
 ):
     """
-        Call "swap" method of the contract.
+        Call smart contract method "swap".
 
         Args:
             account_pk (str): account's private key.

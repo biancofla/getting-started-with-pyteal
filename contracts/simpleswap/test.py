@@ -29,7 +29,7 @@ def test_deploy(faucet):
         # * (25,000 + 3,500 ) * 4 = 114,000 is the addition per integer entry;
         # * (25,000 + 25,000) * 2 = 50,000  is the addition per byte slice entry;
         # * 1000 is the transaction fee.
-        amount=415000
+        amount=415_000
     )
 
     app_id = deploy(creator_pk=creator_pk)
@@ -58,7 +58,7 @@ def test_propose_admin(faucet):
         #   * 1000 is the transaction fee.
         # 2) 1000 microAlgos are the fee required to perform the smart-contract call 
         #    'propose_admin'.
-        amount=416000
+        amount=416_000
     )
 
     app_id = deploy(creator_pk=admin_pk)
@@ -99,7 +99,7 @@ def test_accept_admin_role(faucet):
         #   * 1000 is the transaction fee.
         # 2) 1000 microAlgos are the fee required to perform the smart-contract call 
         #    'propose_admin'.
-        amount=416000
+        amount=416_000
     )
 
     app_id = deploy(creator_pk=admin_pk)
@@ -118,7 +118,7 @@ def test_accept_admin_role(faucet):
         # 1) 100,000 microAlgos is the minimum standard required balance;
         # 2) 1000 microAlgos are the fee required to perform the smart-contract call 
         #    'accept_admin_role'.
-        amount=101000
+        amount=101_000
     )
 
     accept_admin_role(
@@ -154,7 +154,7 @@ def test_set_rate(faucet):
         #   * 1000 is the transaction fee.
         # 2) 1000 microAlgos are the fee required to perform the smart-contract call 
         #    'set_rate'.
-        amount=416000
+        amount=416_000
     )
 
     app_id = deploy(creator_pk=admin_pk)
@@ -195,7 +195,7 @@ def test_optin_assets(faucet):
         #     contract needs in order to handle two new ASAs;
         #   * 4000 are the transactions fees (one payment transaction 
         #     + no-op smart-contract call with two inner transactions).
-        amount=619000
+        amount=619_000
     )
 
     app_id = deploy(creator_pk=sm_creator_pk)
@@ -211,13 +211,13 @@ def test_optin_assets(faucet):
         #   needs in order to handle two new ASAs;
         # * 2000 are the transactions fees needed to perform two ASAs
         #   creation operations.
-        amount=302000
+        amount=302_000
     )
 
     token_a_conf = {
         "unit_name" : "Token A",
         "asset_name": "token-a",
-        "total"     : 1e9,
+        "total"     : 1_000_000_000,
         "decimals"  : 6
     }
     token_a_id = create_asa(
@@ -228,7 +228,7 @@ def test_optin_assets(faucet):
     token_b_conf = {
         "unit_name" : "Token B",
         "asset_name": "token-b",
-        "total"     : 1e9,
+        "total"     : 1_000_000_000,
         "decimals"  : 6
     }
     token_b_id = create_asa(
@@ -243,7 +243,7 @@ def test_optin_assets(faucet):
         # * 100,000 is the minimum standard required balance;
         # * 200,000 is the minimum amount of microAlgos that the account 
         #   needs in order to handle two new ASAs.
-        amount=300000
+        amount=300_000
     )
 
     optin_assets(
@@ -287,7 +287,7 @@ def test_swap(faucet):
         #     + no-op smart-contract call with two inner transactions).
         # 3) 1000 microAlgos are required to perform the smart-contract call 
         #    'set_rate'.
-        amount=620000
+        amount=620_000
     )
 
     app_id = deploy(creator_pk=sm_creator_pk)
@@ -308,13 +308,13 @@ def test_swap(faucet):
         # 2) 2000 microAlgos are required in order to cover ASAs transfers 
         #    to the contract.
         # 3) 2000 microAlgos are required to cover the payment ASAs transfer.
-        amount=306000
+        amount=306_000
     )
 
     token_a_conf = {
         "unit_name" : "Token A",
         "asset_name": "token-a",
-        "total"     : 1e9,
+        "total"     : 1_000_000_000,
         "decimals"  : 6
     }
     token_a_id = create_asa(
@@ -325,7 +325,7 @@ def test_swap(faucet):
     token_b_conf = {
         "unit_name" : "Token B",
         "asset_name": "token-b",
-        "total"     : 1e9,
+        "total"     : 1_000_000_000,
         "decimals"  : 6
     }
     token_b_id = create_asa(
@@ -342,7 +342,7 @@ def test_swap(faucet):
         # * 100,000 is the minimum standard required balance;
         # * 200,000 is the minimum amount of microAlgos that the account 
         #   needs in order to handle two new ASAs.
-        amount=300000
+        amount=300_000
     )
 
     optin_assets(
@@ -356,13 +356,13 @@ def test_swap(faucet):
         sender_pk=asa_creator_pk,
         receiver_addr=app_addr,
         asset_id=token_a_id,
-        amount=int(1e6)
+        amount=1_000_000
     )
     send_asa(
         sender_pk=asa_creator_pk,
         receiver_addr=app_addr,
         asset_id=token_b_id,
-        amount=int(1e6)
+        amount=1_000_000
     )
 
     asa_user_pk, asa_user_addr = account.generate_account()
@@ -377,7 +377,7 @@ def test_swap(faucet):
         #   8 2000 are the fee needed to perform two opt-in operations.
         # 2) 8000 are the fee required to perform two smart-contract calls 
         #    to the 'swap' method (3000 microAlgos per call).
-        amount=308000
+        amount=308_000
     )
 
     optin_asa(
@@ -393,13 +393,13 @@ def test_swap(faucet):
         sender_pk=asa_creator_pk,
         receiver_addr=asa_user_addr,
         asset_id=token_a_id,
-        amount=int(1e6)
+        amount=1_000_000
     )
     send_asa(
         sender_pk=asa_creator_pk,
         receiver_addr=asa_user_addr,
         asset_id=token_b_id,
-        amount=int(1e6)
+        amount=1_000_000
     )
 
     set_rate(
@@ -421,7 +421,7 @@ def test_swap(faucet):
         app_id=app_id,
         asset_id_from=token_a_id,
         asset_id_to=token_b_id,
-        amount_to_swap=int(5e5)
+        amount_to_swap=500_000
     )
 
     balances = {
@@ -436,7 +436,7 @@ def test_swap(faucet):
         app_id=app_id,
         asset_id_from=token_b_id,
         asset_id_to=token_a_id,
-        amount_to_swap=int(5e5)
+        amount_to_swap=500_000
     )
 
     balances = {
@@ -447,12 +447,12 @@ def test_swap(faucet):
     asset_b_balance_post = balances[str(token_b_id)]
 
     assert (
-        asset_a_balance_pre  == 1000000 and 
-        asset_b_balance_pre  == 1000000 and
-        asset_a_balance_mid  ==  500000 and 
-        asset_b_balance_mid  == 1250000 and
-        asset_a_balance_post == 1500000 and 
-        asset_b_balance_post ==  750000
+        asset_a_balance_pre  == 1_000_000 and 
+        asset_b_balance_pre  == 1_000_000 and
+        asset_a_balance_mid  ==   500_000 and 
+        asset_b_balance_mid  == 1_250_000 and
+        asset_a_balance_post == 1_500_000 and 
+        asset_b_balance_post ==   750_000
     )
 
 

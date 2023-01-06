@@ -16,6 +16,7 @@ algod_client  = algod.AlgodClient(
 
 class Faucet:
 
+    
     def __init__(self, passphrase):
         self.passphrase  = passphrase
         self.private_key = mnemonic.to_private_key(self.passphrase)
