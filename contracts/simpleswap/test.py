@@ -11,6 +11,28 @@ import time
 
 
 @pytest.fixture(scope="session")
+def algod_client():
+    algod_address = "http://localhost:4001"
+    algod_token   = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    algod_client  =  algod.AlgodClient(
+        algod_token=algod_token, 
+        algod_address=algod_address
+    )   
+    yield algod_client
+
+
+@pytest.fixture(scope="session")
+def indexer_client():
+    indexer_address = "http://localhost:8980"
+    indexer_token   = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    indexer_client  = indexer.IndexerClient(
+        indexer_token=indexer_token,
+        indexer_address=indexer_address
+    )
+    yield indexer_client
+
+
+@pytest.fixture(scope="session")
 def faucet():
     faucet = Faucet(
         passphrase="<FAUCET_PASSPHRASE>"
@@ -18,10 +40,11 @@ def faucet():
     yield faucet
 
 
-def test_deploy(faucet):
+def test_deploy(algod_client, indexer_client, faucet):
     creator_pk, creator_addr = account.generate_account()
 
     faucet.dispense(
+        algod_client=algod_client,
         receiver_addr=creator_addr, 
         # Total balance required is 415000 microAlgos:
         # * 100,000 is the minimum standard required balance;
@@ -32,22 +55,29 @@ def test_deploy(faucet):
         amount=415_000
     )
 
-    app_id = deploy(creator_pk=creator_pk)
+    app_id = deploy(
+        algod_client=algod_client,
+        creator_pk=creator_pk
+    )
 
     # Wait for indexer to catch-up newest algod updates.
     time.sleep(1)
 
-    app_global_state = get_application_global_state(app_id=app_id)
+    app_global_state = get_application_global_state(
+        indexer_client=indexer_client,
+        app_id=app_id
+    )
 
     admin_addr = encoding.encode_address(app_global_state["admin"])
     
     assert admin_addr == creator_addr
 
 
-def test_propose_admin(faucet):
+def test_propose_admin(algod_client, indexer_client, faucet):
     admin_pk, admin_addr = account.generate_account()
 
     faucet.dispense(
+        algod_client=algod_client,
         receiver_addr=admin_addr, 
         # Total balance required is 416000 microAlgos:
         # 1) 415000 microAlgos are required to deploy the smart-contract:
@@ -61,11 +91,15 @@ def test_propose_admin(faucet):
         amount=416_000
     )
 
-    app_id = deploy(creator_pk=admin_pk)
+    app_id = deploy(
+        algod_client=algod_client,
+        creator_pk=admin_pk
+    )
 
     new_admin_addr = account.generate_account()[1]
 
     propose_admin(
+        algod_client=algod_client,
         admin_pk=admin_pk,
         app_id=app_id,
         admin_proposal_addr=new_admin_addr
@@ -74,7 +108,10 @@ def test_propose_admin(faucet):
     # Wait for indexer to catch-up newest algod updates.
     time.sleep(1)
     
-    app_global_state = get_application_global_state(app_id=app_id)
+    app_global_state = get_application_global_state(
+        indexer_client=indexer_client,
+        app_id=app_id
+    )
 
     app_admin_addr = encoding.encode_address(app_global_state["admin"])
     app_admin_proposal_addr = encoding.encode_address(app_global_state["admin-proposal"])
@@ -85,10 +122,11 @@ def test_propose_admin(faucet):
     )
 
 
-def test_accept_admin_role(faucet):
+def test_accept_admin_role(algod_client, indexer_client, faucet):
     admin_pk, admin_addr = account.generate_account()
 
     faucet.dispense(
+        algod_client=algod_client,
         receiver_addr=admin_addr, 
         # Total balance required is 416000 microAlgos:
         # 1) 415000 microAlgos are required to deploy the smart-contract:
@@ -102,17 +140,22 @@ def test_accept_admin_role(faucet):
         amount=416_000
     )
 
-    app_id = deploy(creator_pk=admin_pk)
+    app_id = deploy(
+        algod_client=algod_client,
+        creator_pk=admin_pk
+    )
 
     new_admin_pk, new_admin_addr = account.generate_account()
 
     propose_admin(
+        algod_client=algod_client,
         admin_pk=admin_pk,
         app_id=app_id,
         admin_proposal_addr=new_admin_addr
     )
 
     faucet.dispense(
+        algod_client=algod_client,
         receiver_addr=new_admin_addr, 
         # Total balance required is 101000 microAlgos:
         # 1) 100,000 microAlgos is the minimum standard required balance;
@@ -122,6 +165,7 @@ def test_accept_admin_role(faucet):
     )
 
     accept_admin_role(
+        algod_client=algod_client,
         new_admin_pk=new_admin_pk,
         app_id=app_id
     )
@@ -129,7 +173,10 @@ def test_accept_admin_role(faucet):
     # Wait for indexer to catch-up newest algod updates.
     time.sleep(1)
 
-    app_global_state = get_application_global_state(app_id=app_id)
+    app_global_state = get_application_global_state(
+        indexer_client=indexer_client,
+        app_id=app_id
+    )
 
     app_admin_addr = encoding.encode_address(app_global_state["admin"])
     app_admin_proposal_addr = app_global_state["admin-proposal"].decode()
@@ -140,10 +187,11 @@ def test_accept_admin_role(faucet):
     )
 
 
-def test_set_rate(faucet):
+def test_set_rate(algod_client, indexer_client, faucet):
     admin_pk, admin_addr = account.generate_account()
 
     faucet.dispense(
+        algod_client=algod_client,
         receiver_addr=admin_addr, 
         # Total balance required is 416000 microAlgos:
         # 1) 415000 microAlgos are required to deploy the smart-contract:
@@ -157,9 +205,13 @@ def test_set_rate(faucet):
         amount=416_000
     )
 
-    app_id = deploy(creator_pk=admin_pk)
+    app_id = deploy(
+        algod_client=algod_client,
+        creator_pk=admin_pk
+    )
 
     set_rate(
+        algod_client=algod_client,
         admin_pk=admin_pk,
         app_id=app_id,
         new_rate_integer=5,
@@ -169,7 +221,10 @@ def test_set_rate(faucet):
     # Wait for indexer to catch-up newest algod updates.
     time.sleep(1)
     
-    app_global_state = get_application_global_state(app_id=app_id)
+    app_global_state = get_application_global_state(
+        indexer_client=indexer_client,
+        app_id=app_id
+    )
 
     rate_integer = app_global_state["R"]
     rate_decimal = app_global_state["r"]
@@ -177,10 +232,11 @@ def test_set_rate(faucet):
     assert rate_integer * (10 ** - rate_decimal) == 0.5
 
 
-def test_optin_assets(faucet):
+def test_optin_assets(algod_client, indexer_client, faucet):
     sm_creator_pk, sm_creator_addr = account.generate_account()
 
     faucet.dispense(
+        algod_client=algod_client,
         receiver_addr=sm_creator_addr, 
         # Total balance required is 619000 microAlgos:
         # 1) 415000 microAlgos are required to deploy the smart-contract:
@@ -198,12 +254,16 @@ def test_optin_assets(faucet):
         amount=619_000
     )
 
-    app_id = deploy(creator_pk=sm_creator_pk)
+    app_id = deploy(
+        algod_client=algod_client,
+        creator_pk=sm_creator_pk
+    )
 
     asa_creator_pk, asa_creator_addr = account.generate_account()
     asa_manager_pk                   = account.generate_account()[0]
 
     faucet.dispense(
+        algod_client=algod_client,
         receiver_addr=asa_creator_addr, 
         # Total balance required is 302000 microAlgos:
         # * 100,000 is the minimum standard required balance;
@@ -221,6 +281,7 @@ def test_optin_assets(faucet):
         "decimals"  : 6
     }
     token_a_id = create_asa(
+        algod_client=algod_client,
         asa_creator_pk=asa_creator_pk,
         asa_manager_pk=asa_manager_pk,
         token_conf=token_a_conf
@@ -232,12 +293,14 @@ def test_optin_assets(faucet):
         "decimals"  : 6
     }
     token_b_id = create_asa(
+        algod_client=algod_client,
         asa_creator_pk=asa_creator_pk,
         asa_manager_pk=asa_manager_pk,
         token_conf=token_b_conf
     )
     
     faucet.dispense(
+        algod_client=algod_client,
         receiver_addr=logic.get_application_address(app_id), 
         # Total balance required is 300000 microAlgos:
         # * 100,000 is the minimum standard required balance;
@@ -247,6 +310,7 @@ def test_optin_assets(faucet):
     )
 
     optin_assets(
+        algod_client=algod_client,
         admin_pk=sm_creator_pk,
         app_id=app_id,
         asset_id_from=token_a_id,
@@ -256,7 +320,10 @@ def test_optin_assets(faucet):
     # Wait for indexer to catch-up newest algod updates.
     time.sleep(1)
 
-    app_global_state = get_application_global_state(app_id=app_id)
+    app_global_state = get_application_global_state(
+        indexer_client=indexer_client,
+        app_id=app_id
+    )
 
     admin_addr = encoding.encode_address(app_global_state["admin"])
 
@@ -267,10 +334,11 @@ def test_optin_assets(faucet):
     )
 
 
-def test_swap(faucet):
+def test_swap(algod_client, indexer_client, faucet):
     sm_creator_pk, sm_creator_addr = account.generate_account()
 
     faucet.dispense(
+        algod_client=algod_client,
         receiver_addr=sm_creator_addr, 
         # Total balance required is 620000 microAlgos:
         # 1) 415000 microAlgos are required to deploy the smart-contract:
@@ -290,12 +358,16 @@ def test_swap(faucet):
         amount=620_000
     )
 
-    app_id = deploy(creator_pk=sm_creator_pk)
+    app_id = deploy(
+        algod_client=algod_client,
+        creator_pk=sm_creator_pk
+    )
 
     asa_creator_pk, asa_creator_addr = account.generate_account()
     asa_manager_pk                   = account.generate_account()[0]
 
     faucet.dispense(
+        algod_client=algod_client,
         receiver_addr=asa_creator_addr, 
         # Total balance required is 306000 microAlgos:
         # 1) 302000 microAlgos are required in order to create and handle
@@ -318,6 +390,7 @@ def test_swap(faucet):
         "decimals"  : 6
     }
     token_a_id = create_asa(
+        algod_client=algod_client,
         asa_creator_pk=asa_creator_pk,
         asa_manager_pk=asa_manager_pk,
         token_conf=token_a_conf
@@ -329,6 +402,7 @@ def test_swap(faucet):
         "decimals"  : 6
     }
     token_b_id = create_asa(
+        algod_client=algod_client,
         asa_creator_pk=asa_creator_pk,
         asa_manager_pk=asa_manager_pk,
         token_conf=token_b_conf
@@ -337,6 +411,7 @@ def test_swap(faucet):
     app_addr = logic.get_application_address(app_id)
     
     faucet.dispense(
+        algod_client=algod_client,
         receiver_addr=app_addr, 
         # Total balance required is 300000 microAlgos:
         # * 100,000 is the minimum standard required balance;
@@ -346,6 +421,7 @@ def test_swap(faucet):
     )
 
     optin_assets(
+        algod_client=algod_client,
         admin_pk=sm_creator_pk,
         app_id=app_id,
         asset_id_from=token_a_id,
@@ -353,12 +429,14 @@ def test_swap(faucet):
     )
 
     send_asa(
+        algod_client=algod_client,
         sender_pk=asa_creator_pk,
         receiver_addr=app_addr,
         asset_id=token_a_id,
         amount=1_000_000
     )
     send_asa(
+        algod_client=algod_client,
         sender_pk=asa_creator_pk,
         receiver_addr=app_addr,
         asset_id=token_b_id,
@@ -368,6 +446,7 @@ def test_swap(faucet):
     asa_user_pk, asa_user_addr = account.generate_account()
 
     faucet.dispense(
+        algod_client=algod_client,
         receiver_addr=asa_user_addr, 
         # Total balance required is 308000 microAlgos:
         # 1) 300000 microAlgos are required in order to handle two ASAs:
@@ -381,21 +460,25 @@ def test_swap(faucet):
     )
 
     optin_asa(
+        algod_client=algod_client,
         account_pk=asa_user_pk,
         asset_id=token_a_id
     )
     optin_asa(
+        algod_client=algod_client,
         account_pk=asa_user_pk,
         asset_id=token_b_id
     )
 
     send_asa(
+        algod_client=algod_client,
         sender_pk=asa_creator_pk,
         receiver_addr=asa_user_addr,
         asset_id=token_a_id,
         amount=1_000_000
     )
     send_asa(
+        algod_client=algod_client,
         sender_pk=asa_creator_pk,
         receiver_addr=asa_user_addr,
         asset_id=token_b_id,
@@ -403,6 +486,7 @@ def test_swap(faucet):
     )
 
     set_rate(
+        algod_client=algod_client,
         admin_pk=sm_creator_pk,
         app_id=app_id,
         new_rate_integer=5,
@@ -411,12 +495,13 @@ def test_swap(faucet):
 
     balances = {
         str(a["asset-id"]): a["amount"] 
-        for a in get_account_info(asa_user_addr)["assets"]
+        for a in get_account_info(algod_client, asa_user_addr)["assets"]
     }
     asset_a_balance_pre = balances[str(token_a_id)]
     asset_b_balance_pre = balances[str(token_b_id)]
 
     swap(
+        algod_client=algod_client,
         account_pk=asa_user_pk,
         app_id=app_id,
         asset_id_from=token_a_id,
@@ -426,12 +511,13 @@ def test_swap(faucet):
 
     balances = {
         str(a["asset-id"]): a["amount"] 
-        for a in get_account_info(asa_user_addr)["assets"]
+        for a in get_account_info(algod_client, asa_user_addr)["assets"]
     }
     asset_a_balance_mid = balances[str(token_a_id)]
     asset_b_balance_mid = balances[str(token_b_id)]
 
     swap(
+        algod_client=algod_client,
         account_pk=asa_user_pk,
         app_id=app_id,
         asset_id_from=token_b_id,
@@ -441,7 +527,7 @@ def test_swap(faucet):
 
     balances = {
         str(a["asset-id"]): a["amount"] 
-        for a in get_account_info(asa_user_addr)["assets"]
+        for a in get_account_info(algod_client, asa_user_addr)["assets"]
     }
     asset_a_balance_post = balances[str(token_a_id)]
     asset_b_balance_post = balances[str(token_b_id)]

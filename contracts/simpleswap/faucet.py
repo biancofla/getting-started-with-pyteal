@@ -6,17 +6,9 @@ from algosdk import (
     error
 )
 
-algod_address = "http://localhost:4001"
-algod_token   = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-algod_client  = algod.AlgodClient(
-    algod_token=algod_token, 
-    algod_address=algod_address
-)
-
 
 class Faucet:
 
-    
     def __init__(self, passphrase):
         self.passphrase  = passphrase
         self.private_key = mnemonic.to_private_key(self.passphrase)
@@ -24,6 +16,7 @@ class Faucet:
 
     def dispense(
         self,
+        algod_client : algod.AlgodClient,
         receiver_addr: str,
         amount       : int
     ) -> int:
@@ -31,6 +24,7 @@ class Faucet:
             Dispense ALGOs.
 
             Args:
+                algod_client (algod.AlgodClient): algod client.
                 receiver (str): receiver's address.
                 amount (int): amount to send.
 

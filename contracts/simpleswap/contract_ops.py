@@ -11,34 +11,20 @@ from algosdk import (
     error,
     logic
 )
-
 from pyteal import *
 
 import base64
 
-# Algod client configuration.
-algod_address = "http://localhost:4001"
-algod_token   = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-algod_client  = algod.AlgodClient(
-    algod_token=algod_token, 
-    algod_address=algod_address
-)
-# Indexer client configuration.
-indexer_address = "http://localhost:8980"
-indexer_token   = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-indexer_client  = indexer.IndexerClient(
-    indexer_token=indexer_token,
-    indexer_address=indexer_address
-)
-
 
 def deploy(
-    creator_pk: str
+    algod_client: algod.AlgodClient,
+    creator_pk  : str
 ) -> int:
     """
         Deploy the smart contract.
 
         Args:
+            algod_client (algod.AlgodClient): algod client.
             creator_pk (str): smart contract's creator private key.
 
         Returns:
@@ -90,14 +76,16 @@ def deploy(
 
 
 def propose_admin(
+    algod_client       : algod.AlgodClient,
     admin_pk           : str,
     app_id             : int,
     admin_proposal_addr: str
 ) -> int:
     """
-        Call smart contracrt method "propose_admin".
+        Call smart contract method "propose_admin".
 
         Args:
+            algod_client (algod.AlgodClient): algod client.
             admin_pk (str): administrator's private key.
             app_id (int): application index.
             admin_proposal_addr (str): proposed administrator address.
@@ -139,6 +127,7 @@ def propose_admin(
 
 
 def accept_admin_role(
+    algod_client: algod.AlgodClient,
     new_admin_pk: str,
     app_id      : int
 ) -> int:
@@ -146,6 +135,7 @@ def accept_admin_role(
         Call smart contract method "accept_admin_role".
 
         Args:
+            algod_client (algod.AlgodClient): algod client.
             new_admin_pk (str): new administrator's private key.
             app_id (int): application index.
 
@@ -185,6 +175,7 @@ def accept_admin_role(
 
 
 def set_rate(
+    algod_client    : algod.AlgodClient,
     admin_pk        : str, 
     app_id          : int,
     new_rate_integer: int, 
@@ -194,6 +185,7 @@ def set_rate(
         Call smart contract method "set_rate".
 
         Args:
+            algod_client (algod.AlgodClient): algod client.
             admin_pk (str): administrator's private key.
             app_id (int): application index.
             new_rate_integer (int): integer part of the new swap rate.
@@ -236,6 +228,7 @@ def set_rate(
 
 
 def optin_assets(
+    algod_client : algod.AlgodClient,
     admin_pk     : str, 
     app_id       : int, 
     asset_id_from: int, 
@@ -245,6 +238,7 @@ def optin_assets(
         Call smart contract method "optin_assets".
 
         Args:
+            algod_client (algod.AlgodClient): algod client.
             admin_pk (str): administrator's private key.
             app_id (int): application index.
             asset_id_from (int): source ASA's ID.
@@ -300,6 +294,7 @@ def optin_assets(
 
 
 def swap(
+    algod_client  : algod.AlgodClient,
     account_pk    : str, 
     app_id        : int, 
     asset_id_from : int, 
@@ -310,6 +305,7 @@ def swap(
         Call smart contract method "swap".
 
         Args:
+            algod_client (algod.AlgodClient): algod client.
             account_pk (str): account's private key.
             app_id (int): application index.
             asset_id_from (int): source ASA's ID.
@@ -366,6 +362,7 @@ def swap(
 
 
 def create_asa(
+    algod_client  : algod.AlgodClient,
     asa_creator_pk: str, 
     asa_manager_pk: str, 
     token_conf    : dict
@@ -374,6 +371,7 @@ def create_asa(
         Create ASA.
 
         Args:
+            algod_client (algod.AlgodClient): algod client.
             asa_creator_pk (str): ASA creator's private key.
             asa_manager_pk (str): ASA manager's private key.
             token_conf (dict): token's configuration parameters.
@@ -420,13 +418,15 @@ def create_asa(
 
 
 def optin_asa(
-    account_pk: str, 
-    asset_id  : int
+    algod_client: algod.AlgodClient,
+    account_pk  : str, 
+    asset_id    : int
 ):
     """
         Opt-in into ASA.
 
         Args:
+            algod_client (algod.AlgodClient): algod client.
             account_pk (str): account's private key.
             asset_id (int): ASA's ID to opt-in.
 
@@ -463,6 +463,7 @@ def optin_asa(
 
 
 def send_asa(
+    algod_client : algod.AlgodClient,
     sender_pk    : str, 
     receiver_addr: str, 
     asset_id     : int, 
@@ -472,6 +473,7 @@ def send_asa(
         Send ASA.
 
         Args:
+            algod_client (algod.AlgodClient): algod client.
             sender_pk (str): senders's private key.
             receiver_addr (str): receiver's address.
             asset_id (int): ASA's ID to opt-in.
@@ -512,12 +514,14 @@ def send_asa(
 
 
 def get_account_info(
+    algod_client: algod.AlgodClient,
     account_addr: str
 ) -> dict:
     """
         Get account's info.
 
         Args:
+            algod_client (algod.AlgodClient): algod client.
             account_pk (str): account's public key.
 
         Returns:
@@ -533,12 +537,14 @@ def get_account_info(
 
 
 def get_application_global_state(
-    app_id: int
+    indexer_client: indexer.IndexerClient,
+    app_id        : int
 ) -> dict:
     """
         Get application's global state.
 
         Args:
+            indexer_client (indexer.IndexerClient): indexer client.
             app_id (int): application index.
 
         Returns:
@@ -571,12 +577,14 @@ def get_application_global_state(
 
 
 def get_asa_details(
+    indexer_client: indexer.IndexerClient,
     asset_id: int
 ) -> dict:
     """
         Get asset information.
 
         Args:
+            indexer_client (indexer.IndexerClient): indexer client.
             asset_id (int): asset id.
 
         Returns:
