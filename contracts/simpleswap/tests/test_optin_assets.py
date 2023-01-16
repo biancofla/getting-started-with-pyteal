@@ -124,5 +124,6 @@ class OptinAssetsTestCase(BaseTestCase):
         self.assertEqual(token_a_id, asset_id_from)
         self.assertEqual(token_b_id, asset_id_to)
 
+
 if __name__ == "__main__":
     pass

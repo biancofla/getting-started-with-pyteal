@@ -15,8 +15,8 @@ class ProposeAdminTestCase(BaseTestCase):
     def setUpClass(cls) -> None:
         super(ProposeAdminTestCase, cls).setUpClass()
 
-        cls.admin_pk, cls.admin_addr     = account.generate_account()
-        _           , cls.new_admin_addr = account.generate_account()
+        cls.admin_pk    , cls.admin_addr     = account.generate_account()
+        cls.new_admin_pk, cls.new_admin_addr = account.generate_account()
 
         cls.faucet.dispense(
             algod_client=cls.algod_client,
@@ -39,7 +39,6 @@ class ProposeAdminTestCase(BaseTestCase):
             algod_client=self.algod_client,
             creator_pk=self.admin_pk
         )
-
         self.assertGreater(app_id, -1)
 
         propose_admin_cr = propose_admin(
@@ -48,7 +47,6 @@ class ProposeAdminTestCase(BaseTestCase):
             app_id=app_id,
             admin_proposal_addr=self.new_admin_addr
         )
-
         self.assertGreater(propose_admin_cr, -1)
 
         # Wait for indexer to catch-up newest algod updates.

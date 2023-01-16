@@ -9,7 +9,7 @@
 2. Compile the TEAL code.
 
 ```
-    python ./contract.py
+    python ./src/contract.py
 ```
 
 # How To Test This Contract?
