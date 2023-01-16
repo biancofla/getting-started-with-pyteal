@@ -14,10 +14,10 @@
 
 # How To Test This Contract?
 
-1. Modify the value of the parameter `passphrase` inside the `Faucet` constructor inside the file `test.py` according to the faucet account info.
+1. Modify the value of the parameter `passphrase` inside the `Faucet` constructor inside the file `tests/test_base.py` according to the faucet account info.
 
 2. Run the following command.
 
 ```
-    pytest ./test.py
+    python -m unittest discover .
 ```

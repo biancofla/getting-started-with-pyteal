@@ -34,9 +34,9 @@ def deploy(
     with open("../../build/approval.teal", "r") as f: approval = f.read()
     with open("../../build/clear.teal"   , "r") as f: clear    = f.read()
 
-    sender = account.address_from_private_key(creator_pk)
-
     try:
+        sender = account.address_from_private_key(creator_pk)
+
         approval_result  = algod_client.compile(approval)
         approval_program = base64.b64decode(approval_result["result"])
 
@@ -103,7 +103,7 @@ def propose_admin(
 
         suggested_parameters = algod_client.suggested_params()
 
-        with open("./api.json") as f:
+        with open("./src/api.json") as f:
             js = f.read()
         c = Contract.from_json(js)
 
@@ -152,7 +152,7 @@ def accept_admin_role(
 
         suggested_parameters = algod_client.suggested_params()
 
-        with open("./api.json") as f:
+        with open("./src/api.json") as f:
             js = f.read()
         c = Contract.from_json(js)
 
@@ -204,7 +204,7 @@ def set_rate(
 
         suggested_parameters = algod_client.suggested_params()
 
-        with open("./api.json") as f:
+        with open("./src/api.json") as f:
             js = f.read()
         c = Contract.from_json(js)
 
@@ -259,7 +259,7 @@ def optin_assets(
         suggested_parameters.flat_fee = True
         suggested_parameters.fee = 1000
 
-        with open("./api.json") as f:
+        with open("./src/api.json") as f:
             js = f.read()
         c = Contract.from_json(js)
 
@@ -316,8 +316,9 @@ def swap(
             (int): if successful, return the confirmation round; 
             otherwise, return -1.
     """
-    sender = account.address_from_private_key(account_pk)
     try:
+        sender = account.address_from_private_key(account_pk)
+
         atc = AtomicTransactionComposer()
 
         signer = AccountTransactionSigner(account_pk)
@@ -326,7 +327,7 @@ def swap(
         suggested_parameters.flat_fee = True
         suggested_parameters.fee = 2000
 
-        with open("./api.json") as f:
+        with open("./src/api.json") as f:
             js = f.read()
         c = Contract.from_json(js)
 
