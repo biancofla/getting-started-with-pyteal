@@ -552,7 +552,6 @@ def get_application_global_state(
             (dict): application's global state.
     """
     global_state = {}
-    
     try:
         app = indexer_client.applications(app_id)
 

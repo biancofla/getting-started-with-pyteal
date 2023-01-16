@@ -1,7 +1,4 @@
-from algosdk import (
-    account,
-    encoding
-)
+from algosdk import account, encoding
 
 from tests.test_base import BaseTestCase
 from src.contract_ops import *
@@ -24,7 +21,7 @@ class DeployTestCase(BaseTestCase):
             # * 100,000 is the minimum standard required balance;
             # * 100,000 is the per page creation application fee;
             # * (25,000 + 3,500 ) * 4 = 114,000 is the addition per integer entry;
-            # * (25,000 + 25,000) * 2 = 50,000  is the addition per byte slice entry;
+            # * (25,000 + 25,000) * 2 =  50,000 is the addition per byte slice entry;
             # * 1000 is the transaction fee.
             amount=415_000
         )
@@ -35,7 +32,6 @@ class DeployTestCase(BaseTestCase):
             algod_client=self.algod_client,
             creator_pk=self.creator_pk
         )
-
         self.assertGreater(app_id, -1)
 
         # Wait for indexer to catch-up newest algod updates.
@@ -45,7 +41,6 @@ class DeployTestCase(BaseTestCase):
             indexer_client=self.indexer_client,
             app_id=app_id
         )
-
         self.assertTrue("admin" in app_global_state.keys())
 
         admin_addr = encoding.encode_address(app_global_state["admin"])

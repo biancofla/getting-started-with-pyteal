@@ -86,7 +86,7 @@ def set_rate(
                 # Check if the sender is the current administrator of
                 # the contract.
                 Txn.sender() == App.globalGet(global_admin),
-                # Check if the new rate is greater than 0.
+                # Check if the new rate integer part is greater than 0.
                 new_rate_integer.get() > Int(0)
             )
         ),
