@@ -25,7 +25,7 @@ class BaseTestCase(unittest.TestCase):
         )
         # Faucet configuration.
         cls.faucet = Faucet(
-            passphrase="<PASSPHRASE_MNEMONIC>"
+            passphrase="<FAUCET_MNEMONIC>"
         )
 
 

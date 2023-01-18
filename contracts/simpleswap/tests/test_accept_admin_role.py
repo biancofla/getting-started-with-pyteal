@@ -76,7 +76,7 @@ class AcceptAdminRoleTestCase(BaseTestCase):
         self.assertEqual(app_admin_proposal_addr, b"")
 
 
-    def test_accept_admin_role_wrong_proped_admin(self):
+    def test_accept_admin_role_wrong_proposed_admin(self):
         accept_admin_role_cr = accept_admin_role(
             algod_client=self.algod_client,
             new_admin_pk=self.admin_pk,
